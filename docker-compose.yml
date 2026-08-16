@@ -1,0 +1,6 @@
+services:
+  rui:
+    build: .
+    volumes:
+      - .:/app
+    command: python -m pytest tests/ -v

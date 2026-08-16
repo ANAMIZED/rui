@@ -1,0 +1,32 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "rui"
+version = "0.1.0"
+description = "Recursive UltraIntelligence — Autonomous Agentic Operating System with RAH, RAO, Call Trees, meta-loops, cost control and governance"
+readme = "README.md"
+requires-python = ">=3.11"
+license = {text = "Apache-2.0"}
+authors = [{name = "RUI Contributors"}]
+dependencies = [
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "structlog>=24.4.0",
+    "typer>=0.12.0",
+    "rich>=13.9.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=8.3.0", "pytest-asyncio>=0.24.0"]
+
+[project.scripts]
+rui = "rui:main"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+pythonpath = ["src"]
