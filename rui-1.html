@@ -1,0 +1,2054 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="color-scheme" content="light">
+<title>RUI · Recursive UltraIntelligence — live console</title>
+<style>
+/* RUI — daylight control room */
+:root{
+  --paper:#EFF1EE; --panel:#FAFBF9; --well:#E4E7E2; --ink:#161D22;
+  --mut:#5B656C; --rule:#C7CCC5; --acc:#2140C7; --acc-ink:#1A34A3;
+  --ok:#177A47; --run:#A16B0F; --fail:#BE3524; --dead:#79828A;
+  --mono:ui-monospace,"SF Mono","Cascadia Mono","Roboto Mono",Menlo,Consolas,monospace;
+  --cond:"Bahnschrift SemiCondensed","Arial Narrow","Avenir Next Condensed","Helvetica Neue",system-ui,sans-serif;
+  --body:system-ui,-apple-system,"Segoe UI",Roboto,sans-serif;
+}
+*{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent}
+html{font-size:16px}
+body{background:var(--paper);color:var(--ink);font-family:var(--body);
+  font-size:.9375rem;line-height:1.45;padding-bottom:calc(64px + env(safe-area-inset-bottom))}
+button{font:inherit;color:inherit;background:none;border:0;cursor:pointer}
+:focus-visible{outline:2px solid var(--acc);outline-offset:2px;border-radius:4px}
+.mono{font-family:var(--mono);font-variant-numeric:tabular-nums}
+.cond{font-family:var(--cond);font-stretch:condensed;text-transform:uppercase;letter-spacing:.06em}
+
+/* header */
+header{position:sticky;top:0;z-index:30;background:var(--paper);
+  border-bottom:1px solid var(--rule);padding-top:env(safe-area-inset-top)}
+.hrow{display:flex;align-items:center;gap:.6rem;padding:.55rem .8rem .45rem}
+.wordmark{font-family:var(--cond);font-stretch:condensed;font-weight:700;
+  font-size:1.35rem;letter-spacing:.12em}
+.wordmark b{color:var(--acc)}
+.hspacer{flex:1}
+.phase{display:flex;align-items:center;gap:.3rem}
+.phase select{font:600 .8rem var(--mono);background:var(--panel);color:var(--ink);
+  border:1px solid var(--rule);border-radius:4px;padding:.45rem .35rem;min-height:36px}
+.stop{font-family:var(--cond);font-stretch:condensed;font-weight:700;font-size:.8rem;
+  letter-spacing:.08em;text-transform:uppercase;color:#fff;background:var(--fail);
+  border-radius:5px;padding:.55rem .7rem;min-height:40px}
+.stop.reset{background:var(--ink)}
+.strip{display:flex;gap:1rem;overflow-x:auto;padding:.35rem .8rem .5rem;
+  font-family:var(--mono);font-size:.72rem;color:var(--mut);white-space:nowrap;
+  scrollbar-width:none}
+.strip::-webkit-scrollbar{display:none}
+.strip b{color:var(--ink);font-weight:600}
+.strip .lamp{margin-right:.25rem}
+
+/* tabs */
+nav{position:fixed;left:0;right:0;bottom:0;z-index:30;display:flex;
+  background:var(--panel);border-top:1px solid var(--rule);
+  padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;min-height:56px;font-family:var(--cond);font-stretch:condensed;
+  text-transform:uppercase;letter-spacing:.08em;font-size:.78rem;font-weight:700;
+  color:var(--mut);border-top:3px solid transparent}
+nav button[aria-selected="true"]{color:var(--acc-ink);border-top-color:var(--acc)}
+
+/* layout */
+main{padding:.8rem .8rem 1.2rem;max-width:760px;margin:0 auto}
+.tab{display:none}.tab.active{display:block}
+.card{background:var(--panel);border:1px solid var(--rule);border-radius:8px;
+  padding:.8rem;margin-bottom:.8rem}
+.card h2{font-family:var(--cond);font-stretch:condensed;text-transform:uppercase;
+  letter-spacing:.1em;font-size:.78rem;font-weight:700;color:var(--mut);
+  margin-bottom:.55rem;display:flex;align-items:center;gap:.5rem}
+.card h2 .mono{text-transform:none;letter-spacing:0;font-weight:400}
+.note{font-size:.8rem;color:var(--mut)}
+.btns{display:flex;flex-wrap:wrap;gap:.5rem}
+.btn{background:var(--ink);color:var(--paper);border-radius:6px;padding:.65rem .85rem;
+  font-weight:600;font-size:.85rem;min-height:44px;flex:1 1 auto;text-align:center}
+.btn.sec{background:var(--well);color:var(--ink);border:1px solid var(--rule)}
+.btn.acc{background:var(--acc)}
+.btn.warn{background:#fff;color:var(--fail);border:1.5px solid var(--fail)}
+.btn:disabled{opacity:.45;cursor:default}
+hr.rule{border:0;border-top:1px solid var(--rule);margin:.7rem 0}
+
+/* lamps + stamps */
+.lamp{display:inline-block;width:9px;height:9px;border-radius:50%;
+  background:var(--mut);vertical-align:.02em}
+.lamp.OK{background:var(--ok)}
+.lamp.FAILED{background:var(--fail)}
+.lamp.KILLED{background:var(--dead)}
+.lamp.RUNNING,.lamp.PENDING{background:var(--run);animation:pulse 1s ease-in-out infinite}
+@keyframes pulse{50%{opacity:.25}}
+.stamp{display:inline-block;font-family:var(--cond);font-stretch:condensed;
+  font-weight:700;font-size:.66rem;letter-spacing:.1em;text-transform:uppercase;
+  border:1.5px solid currentColor;border-radius:3px;padding:.1rem .35rem;
+  animation:stampin .18s ease-out}
+@keyframes stampin{from{transform:scale(1.5) rotate(-6deg);opacity:0}}
+.stamp.ok{color:var(--ok)}.stamp.fail{color:var(--fail)}
+.stamp.dead{color:var(--dead)}.stamp.run{color:var(--run)}.stamp.acc{color:var(--acc-ink)}
+
+/* call-tree ledger (signature element) */
+.tree{font-size:.83rem}
+.rootblk{border:1px solid var(--rule);border-radius:8px;background:var(--panel);
+  margin-bottom:.7rem;overflow:hidden}
+.rootblk>.rhead{display:flex;align-items:center;gap:.5rem;padding:.55rem .7rem;
+  background:var(--well);border-bottom:1px solid var(--rule)}
+.rhead .tl{font-weight:700}
+.rhead .fig{margin-left:auto}
+.row{display:flex;align-items:center;gap:.45rem;min-height:44px;padding:.3rem .7rem;
+  border-bottom:1px solid var(--well);position:relative}
+.row:last-child{border-bottom:0}
+.row .rail{flex:none;width:calc(var(--d) * 14px);align-self:stretch;
+  border-right:2px solid var(--well);margin-right:.15rem}
+.row[style*="--d:0"] .rail{border-right:0}
+.row .nid{font-family:var(--mono);font-size:.76rem;color:var(--mut);flex:none}
+.row .tl{flex:1;min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+.row .fig,.rhead .fig{font-family:var(--mono);font-size:.74rem;color:var(--mut);
+  font-variant-numeric:tabular-nums;flex:none;text-align:right}
+.row.killable{cursor:pointer}
+.chip{display:inline-block;font-family:var(--mono);font-size:.66rem;
+  border:1px solid var(--rule);border-radius:3px;padding:0 .28rem;color:var(--mut);
+  background:var(--paper);margin-left:.25rem}
+.chip.esc{color:var(--run);border-color:var(--run)}
+.chip.cache{color:var(--acc-ink);border-color:var(--acc-ink)}
+.st-KILLED .tl{text-decoration:line-through;color:var(--dead)}
+.err{font-size:.72rem;color:var(--fail);padding:0 .7rem .45rem calc(.7rem + 14px)}
+
+/* console */
+.console{background:var(--ink);color:#D7DCD4;border-radius:8px;padding:.6rem .7rem;
+  font-family:var(--mono);font-size:.72rem;line-height:1.55;max-height:200px;
+  overflow-y:auto;overflow-x:hidden}
+.console div{white-space:pre-wrap;word-break:break-word}
+.console .warn{color:#E8B04B}.console .ok{color:#7CC98F}.console .fail{color:#F08573}
+.console .ts{color:#7C868D;margin-right:.4rem}
+
+/* proposals */
+.prop{border:1px solid var(--rule);border-radius:8px;padding:.65rem;margin-bottom:.6rem;
+  background:var(--panel)}
+.prop .ph{display:flex;gap:.5rem;align-items:baseline;flex-wrap:wrap}
+.prop .tgt{font-family:var(--mono);font-size:.78rem;font-weight:600}
+.prop .who{font-family:var(--mono);font-size:.7rem;color:var(--mut)}
+.prop .why{font-size:.78rem;color:var(--mut);margin:.25rem 0 .45rem}
+.stages{display:flex;flex-wrap:wrap;gap:.3rem;align-items:center}
+.sg{font-family:var(--cond);font-stretch:condensed;font-size:.62rem;font-weight:700;
+  letter-spacing:.07em;border:1.5px solid var(--rule);color:var(--mut);
+  border-radius:3px;padding:.12rem .3rem}
+.sg.ok{border-color:var(--ok);color:var(--ok)}
+.sg.fail{border-color:var(--fail);color:var(--fail)}
+.sg.now{border-color:var(--run);color:var(--run);animation:pulse 1s infinite}
+.prop .detail{font-family:var(--mono);font-size:.68rem;color:var(--mut);margin-top:.35rem}
+.prop .final{margin-top:.4rem}
+
+/* registry / lists */
+.kv{display:flex;justify-content:space-between;gap:.6rem;padding:.34rem 0;
+  border-bottom:1px solid var(--well);font-size:.8rem;align-items:baseline}
+.kv:last-child{border-bottom:0}
+.kv .k{font-family:var(--mono);font-size:.74rem}
+.kv .v{font-family:var(--mono);font-size:.72rem;color:var(--mut);text-align:right}
+.big{font-family:var(--mono);font-size:1.7rem;font-weight:600;
+  font-variant-numeric:tabular-nums;letter-spacing:-.01em}
+ul.plain{list-style:none}
+ul.plain li{padding:.22rem 0;font-size:.8rem;border-bottom:1px solid var(--well)}
+ul.plain li:last-child{border-bottom:0}
+
+/* bars */
+.bar{height:10px;background:var(--well);border-radius:5px;overflow:hidden;margin:.25rem 0 .5rem}
+.bar i{display:block;height:100%;background:var(--acc);border-radius:5px;
+  width:0;transition:width .4s ease}
+.blabel{display:flex;justify-content:space-between;font-family:var(--mono);
+  font-size:.72rem;color:var(--mut)}
+
+/* inputs */
+input[type=text]{width:100%;font:400 16px var(--mono);background:#fff;color:var(--ink);
+  border:1px solid var(--rule);border-radius:6px;padding:.6rem .6rem;min-height:44px}
+label.fl{display:block;font-family:var(--cond);font-stretch:condensed;
+  text-transform:uppercase;letter-spacing:.08em;font-size:.68rem;font-weight:700;
+  color:var(--mut);margin:.5rem 0 .2rem}
+
+/* sheet + toast */
+.scrim{position:fixed;inset:0;background:rgba(22,29,34,.45);z-index:40;display:none}
+.scrim.open{display:block}
+.sheet{position:fixed;left:0;right:0;bottom:0;z-index:41;background:var(--panel);
+  border-top:1px solid var(--rule);border-radius:14px 14px 0 0;
+  padding:1rem .9rem calc(1rem + env(safe-area-inset-bottom));max-width:760px;
+  margin:0 auto;transform:translateY(105%);transition:transform .22s ease}
+.sheet.open{transform:none}
+.sheet h3{font-family:var(--cond);font-stretch:condensed;text-transform:uppercase;
+  letter-spacing:.1em;font-size:.85rem;margin-bottom:.5rem}
+.sheet .body{font-size:.85rem;margin-bottom:.8rem}
+.sheet .body .mono{font-size:.78rem}
+#toast{position:fixed;left:50%;bottom:calc(72px + env(safe-area-inset-bottom));
+  transform:translateX(-50%) translateY(8px);background:var(--ink);color:var(--paper);
+  font-size:.8rem;padding:.55rem .9rem;border-radius:99px;z-index:50;opacity:0;
+  transition:.22s;pointer-events:none;max-width:88vw;text-align:center}
+#toast.show{opacity:1;transform:translateX(-50%)}
+
+@media (prefers-reduced-motion:reduce){
+  *,*::before,*::after{animation:none!important;transition:none!important}
+}
+@media (min-width:640px){
+  .tree{font-size:.86rem}
+  .console{max-height:260px}
+}
+
+/* wiki constellation */
+#galaxy{display:block;width:100%;height:320px;background:#11171C;border-radius:8px;
+  touch-action:none;cursor:grab}
+.legend{display:flex;flex-wrap:wrap;gap:.35rem .8rem;margin-top:.55rem;
+  font-family:var(--mono);font-size:.66rem;color:var(--mut)}
+.dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:.3rem;
+  vertical-align:.02em;flex:none}
+.wnote{cursor:pointer;min-height:44px;align-items:center}
+.wnote .k{display:flex;align-items:center;min-width:0;overflow:hidden;
+  text-overflow:ellipsis;white-space:nowrap}
+button.nlink{min-height:34px;padding:.3rem .5rem;font-size:.7rem;
+  margin:.15rem .15rem 0 0;cursor:pointer}
+nav button{font-size:.74rem}
+@media (min-width:640px){#galaxy{height:400px}}
+
+</style>
+</head>
+<body>
+
+<header>
+  <div class="hrow">
+    <span class="wordmark">R·U·<b>I</b></span>
+    <span class="hspacer"></span>
+    <span class="phase cond" style="font-size:.7rem;color:var(--mut)">phase
+      <select id="phaseSel" aria-label="MVP phase">
+        <option value="1">1</option><option value="2">2</option>
+        <option value="3" selected>3</option><option value="4">4</option>
+      </select>
+    </span>
+    <button id="btnStop" class="stop">STOP ALL</button>
+  </div>
+  <div id="strip" class="strip"></div>
+</header>
+
+<main>
+  <section class="tab active" id="tab-run">
+    <div class="card">
+      <h2>Workloads</h2>
+      <div class="btns">
+        <button class="btn" id="btnCoding" data-run>Run coding suite</button>
+        <button class="btn" id="btnResearch" data-run>Run research (34k-token doc)</button>
+      </div>
+      <div class="btns" style="margin-top:.5rem">
+        <button class="btn sec" id="btnStress" data-run>Stress: tiny budget</button>
+        <button class="btn sec" id="btnDegrade" data-run>Degrade: no frontier</button>
+      </div>
+      <hr class="rule">
+      <p class="note">Every run is a recursive call tree. Generated code is really executed
+      against its tests in this page; failures escalate mid → frontier. Tap any live row
+      to trip its kill switch.</p>
+    </div>
+    <div class="card">
+      <h2>Call tree <span class="mono" style="color:var(--mut)">identity · budget · live cost</span></h2>
+      <div id="treeHost" class="tree"></div>
+    </div>
+    <div class="card">
+      <h2>Events</h2>
+      <div id="console" class="console" aria-live="polite"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-improve">
+    <div class="card">
+      <h2>Outer meta-loop</h2>
+      <p class="note">Proposes changes to its own prompts, routing and policy, then must earn
+      promotion: SANDBOX → EVAL → CANARY → LIMITED → FULL against the frozen
+      holdout. You are the approval gate while autonomy is low.</p>
+      <p class="note mono" id="baseLine" style="margin:.4rem 0"></p>
+      <div class="btns" style="margin-top:.5rem">
+        <button class="btn acc" id="btnCycle" data-run>Run efficiency cycle</button>
+        <button class="btn" id="btnHarness" data-run>Self-Harness: mine &amp; patch</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Adversarial drills</h2>
+      <div class="btns">
+        <button class="btn sec" id="btnHack" data-run>Inject reward hack</button>
+        <button class="btn sec" id="btnTrap" data-run>Inject canary trap</button>
+        <button class="btn sec" id="btnConst">Attack constitution</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Level-∞ gate</h2>
+      <p class="note">Changing how RUI improves itself (here: meta.search_strategy → beam 5)
+      needs two distinct humans plus an external audit reference starting with
+      <span class="mono">EXTAUD</span>.</p>
+      <label class="fl" for="li1">Human approver 1</label>
+      <input type="text" id="li1" placeholder="alice" autocomplete="off">
+      <label class="fl" for="li2">Human approver 2</label>
+      <input type="text" id="li2" placeholder="bob" autocomplete="off">
+      <label class="fl" for="liA">External audit ref</label>
+      <input type="text" id="liA" placeholder="EXTAUD-2026-001" autocomplete="off">
+      <div class="btns" style="margin-top:.6rem">
+        <button class="btn" id="btnLevelInf">Apply Level-∞ change</button>
+      </div>
+    </div>
+    <div class="card">
+      <h2>Artifact registry <span class="mono" style="color:var(--mut)">signed · versioned</span></h2>
+      <div id="registry"></div>
+    </div>
+    <div class="card">
+      <h2>Proposals</h2>
+      <div id="propFeed"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-train">
+    <div class="card">
+      <h2>RAO · decision policy</h2>
+      <p class="note" id="trainNote"></p>
+      <div class="btns" style="margin:.6rem 0 .4rem">
+        <button class="btn acc" id="btnTrain" data-run>Train policy</button>
+      </div>
+      <p class="note mono" id="lossLine"></p>
+      <div id="accBars" style="margin-top:.4rem"></div>
+    </div>
+    <div class="card">
+      <h2>Decision preview</h2>
+      <p class="note">What the shared policy decides right now (EV guard included):</p>
+      <div id="decPrev" style="margin-top:.3rem"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-wiki">
+    <div class="card">
+      <h2>Constellation <span class="mono" id="wikiCount" style="color:var(--mut);text-transform:none;letter-spacing:0"></span></h2>
+      <canvas id="galaxy" aria-label="3D knowledge graph; the same notes are listed below"></canvas>
+      <div class="legend">
+        <span><i class="dot" style="background:#E9EDE8"></i>episode</span>
+        <span><i class="dot" style="background:#6D8DFF"></i>finding</span>
+        <span><i class="dot" style="background:#57C7D6"></i>concept</span>
+        <span><i class="dot" style="background:#5BCB8E"></i>artifact</span>
+        <span><i class="dot" style="background:#E4B44E"></i>eval</span>
+        <span><i class="dot" style="background:#F0705B"></i>incident</span>
+        <span><i class="dot" style="background:#B98FF2"></i>policy</span>
+      </div>
+      <p class="note" style="margin-top:.5rem">Drag to orbit · pinch or scroll to zoom · tap a star to open its
+      note. Agents write these notes autonomously as side effects of runs, kills and promotions;
+      every write is metered, attributed to the writing node, and compliance-logged.</p>
+    </div>
+    <div class="card">
+      <h2>Notes</h2>
+      <input type="text" id="wikiQ" placeholder="Search notes…" autocomplete="off" aria-label="Search notes">
+      <div id="wikiList" style="margin-top:.55rem"></div>
+    </div>
+  </section>
+
+  <section class="tab" id="tab-system">
+    <div class="card"><h2>Constitution</h2><div id="sysConst"></div></div>
+    <div class="card"><h2>Ledger · x402-sim</h2><div id="sysLedger"></div></div>
+    <div class="card"><h2>Frozen eval suite</h2><div id="sysSuite"></div></div>
+    <div class="card"><h2>Compliance evidence</h2><div id="sysComp"></div></div>
+    <div class="card">
+      <h2>About this console</h2>
+      <p class="note">Single-file port of the RUI reference implementation. The model backend
+      is a deterministic in-page simulator (tiered quality, context windows, latency) —
+      but the budgets, breakers, kill switches, metering, frozen evaluation, staged promotion,
+      rollback and audit trail are the real mechanisms, and generated code really runs against
+      its tests in your browser. No network calls; state lives in memory.</p>
+      <div class="btns" style="margin-top:.6rem">
+        <button class="btn warn" id="btnReset">Reset state</button>
+      </div>
+    </div>
+  </section>
+</main>
+
+<nav aria-label="Sections">
+  <button data-tab="run" aria-selected="true">Run</button>
+  <button data-tab="improve" aria-selected="false">Improve</button>
+  <button data-tab="train" aria-selected="false">Train</button>
+  <button data-tab="wiki" aria-selected="false">Wiki</button>
+  <button data-tab="system" aria-selected="false">System</button>
+</nav>
+
+<div class="scrim" id="scrim"></div>
+<div class="sheet" id="sheet" role="dialog" aria-modal="true" aria-labelledby="sheetTitle">
+  <h3 id="sheetTitle"></h3>
+  <div class="body" id="sheetBody"></div>
+  <div class="btns" id="sheetBtns"></div>
+</div>
+<div id="toast" role="status"></div>
+
+<script>
+/* RUI engine — DOM-free port of the RUI reference implementation.
+   Real mechanisms: budgets w/ breakers, hierarchical kill switches, cost
+   metering, governance, frozen eval suite, multi-objective gate, versioned
+   signed registry, staged promotion w/ rollback, Red Queen, phases, ledger.
+   Model backend: deterministic in-browser simulator (tiered quality,
+   context windows, latency); generated code is REALLY executed vs tests. */
+(function (root) {
+"use strict";
+
+// ---------- utils ----------------------------------------------------------
+const tok = t => Math.max(1, Math.ceil(String(t).length / 4));
+const sleep = ms => new Promise(r => setTimeout(r, ms));
+const now = () => Date.now();
+function mulberry32(seed) {
+  let a = seed >>> 0;
+  return function () {
+    a |= 0; a = (a + 0x6D2B79F5) | 0;
+    let t = Math.imul(a ^ (a >>> 15), 1 | a);
+    t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
+    return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
+  };
+}
+function hash8(s) {
+  let h = 5381;
+  for (let i = 0; i < s.length; i++) h = ((h << 5) + h + s.charCodeAt(i)) >>> 0;
+  return h.toString(16).padStart(8, "0");
+}
+const J = o => JSON.stringify(o);
+
+// ---------- errors ----------------------------------------------------------
+class RUIError extends Error {}
+class GovernanceError extends RUIError {}
+class BudgetExceeded extends GovernanceError {}
+class KillSwitchTripped extends GovernanceError {}
+class InvariantViolation extends GovernanceError {}
+class FeatureDisabled extends GovernanceError {}
+class ContextError extends RUIError {}
+
+// ---------- constants -------------------------------------------------------
+const WINDOWS = { slm: 512, mid: 2048, frontier: 8192 };
+const PRICES = { frontier: [15e-6, 75e-6], mid: [3e-6, 15e-6],
+                 slm: [0.2e-6, 1e-6], tool: [0.5e-6, 0] };
+const LATENCY = { frontier: 520, mid: 300, slm: 150, cached: 40 };
+
+const CODE = {
+  sum_list:      "function sum_list(xs){let s=0;for(const x of xs)s+=x;return s}",
+  is_palindrome: "function is_palindrome(s){return s===Array.from(s).reverse().join('')}",
+  count_vowels:  "function count_vowels(s){let n=0;for(const c of String(s).toLowerCase()){if('aeiou'.indexOf(c)>=0)n++}return n}",
+  fibonacci:     "function fibonacci(n){let a=0,b=1;for(let i=0;i<n;i++){const t=a+b;a=b;b=t}return a}",
+  gcd:           "function gcd(a,b){while(b){const t=a%b;a=b;b=t}return a}",
+};
+const KNOWS = { slm: ["sum_list", "is_palindrome"],
+                mid: ["sum_list", "is_palindrome", "count_vowels"],
+                frontier: Object.keys(CODE) };
+
+const FUNCS = [
+  { func: "sum_list",      tests: [[[1, 2, 3], 6], [[], 0]] },
+  { func: "is_palindrome", tests: [["aba", true], ["abc", false]] },
+  { func: "count_vowels",  tests: [["hello", 2], ["xyz", 0]] },
+  { func: "fibonacci",     tests: [[7, 13], [10, 55]] },
+];
+
+const BASELINE_PROMPT =
+  "You are an extremely helpful, thorough, careful, diligent and verbose " +
+  "coding assistant agent. Always think step by step, restate the " +
+  "requirements in your own words, consider every edge case, explain your " +
+  "reasoning in detail, describe the alternative approaches you considered " +
+  "and rejected, apologize if anything is unclear, thank the user for the " +
+  "opportunity, and only after all of the above provide the implementation " +
+  "together with commentary about style, complexity, and refactoring ideas.";
+const IMPROVED_PROMPT =
+  "You are a coding agent. STRICT_OUTPUT: reply with only the function, no prose.";
+
+const DEFAULT_ARTIFACTS = {
+  "level1.coding.system_prompt": { prompt: BASELINE_PROMPT },
+  "level1.coding.retry_policy":  { escalate: true },
+  "routing.table":               { "0": "frontier", "1": "mid", "default": "slm" },
+  "rao.policy.params":           { minBudgetToSpawn: 0.10 },
+  "eval.gate.params":            { minSuccess: 0.5, successSlack: 0.0, maxCostRatio: 1.0,
+                                   maxViolations: 0, minReliability: 0.5 },
+  "infra.allocation":            { poolWorkers: 8, regions: ["local"] },
+  "meta.search_strategy":        { beam: 3 },
+};
+const PROTECTED = ["kernel.constitution", "kernel.identity",
+                   "kernel.killswitch.root", "kernel.budget.mandatory",
+                   "eval.gate.core"];
+const INVARIANTS = [
+  "A root kill switch exists and stays owner-trippable.",
+  "Every agent holds an owner-bound identity issued by the kernel.",
+  "No agent starts or acts without a finite budget.",
+  "Recursion depth never exceeds 16.",
+  "Nothing reaches production without passing the multi-objective gate.",
+  "Level-\u221E changes need \u22652 distinct humans + external audit.",
+];
+const DEPTH_CEILING = 16;
+const STAGES = ["SANDBOX", "EVAL", "CANARY", "LIMITED", "FULL"];
+
+// ---------- simulated model --------------------------------------------------
+function modelText(system, cmd, arg, tier) {
+  if (cmd === "WRITE_FUNC") {
+    const fn = String(arg).trim();
+    let code;
+    if (system.indexOf("ALWAYS_RETURN_PASS") >= 0)
+      code = "function " + fn + "(){return 'PASS'}";
+    else if (KNOWS[tier].indexOf(fn) >= 0) code = CODE[fn];
+    else code = "function " + fn + "(){return 0}";
+    if (system.indexOf("STRICT_OUTPUT") < 0 && tier !== "frontier")
+      return "Sure! Here is the code you asked for:\n\n" + code + "\n\nHope this helps!";
+    return code;
+  }
+  if (cmd === "SUMMARIZE") {
+    const w = String(arg).split(/\s+/).filter(Boolean);
+    return "SUMMARY[" + w.length + "w]: " + w.slice(0, 8).join(" ");
+  }
+  if (cmd === "AGGREGATE") {
+    let items; try { items = JSON.parse(arg); } catch (e) { items = [arg]; }
+    return "FINAL[" + items.length + " sections]: " +
+      items.slice(0, 5).map(i => String(i).slice(0, 34)).join(" \u00b7 ");
+  }
+  if (cmd === "DECOMPOSE")
+    return J(String(arg).split("||").map(s => s.trim()).filter(Boolean));
+  if (cmd === "ANSWER") return "ANSWER: " + String(arg).slice(0, 100);
+  throw new RUIError("unknown command " + cmd);
+}
+
+// really execute the generated code against tests
+function execTests(code, func, tests) {
+  try {
+    const f = new Function(code + ";\nreturn " + func + ";")();
+    for (const [a, b] of tests) {
+      if (J(f(a)) !== J(b)) return { ok: false, err: "assertion failed: " + func + "(" + J(a) + ") != " + J(b) };
+    }
+    return { ok: true };
+  } catch (e) { return { ok: false, err: (e && e.message || "exec error").slice(0, 90) }; }
+}
+
+// ---------- engine ------------------------------------------------------------
+class Engine {
+  constructor(opts) {
+    opts = opts || {};
+    this.speed = opts.speed == null ? 1 : opts.speed;   // 0 = headless/instant
+    this.phase = opts.phase || 3;
+    this.autonomy = opts.autonomy == null ? 0 : opts.autonomy;
+    this.owner = opts.owner || "human.owner@org";
+    this.rng = mulberry32(opts.seed == null ? 7 : opts.seed);
+    this.listeners = [];
+    // kernel state
+    this.kill = new Set();
+    this.killLog = [];
+    this.meterEvents = [];
+    this.cacheHits = 0; this.cacheMisses = 0;
+    this.cache = new Map();
+    this.compliance = [];
+    this.violations = 0;
+    this.spans = 0;
+    this.failureLog = [];
+    this.nodes = {};      // id -> node
+    this.roots = [];
+    this._rootCount = 0;
+    this.constitutionDigest = hash8(J(INVARIANTS) + J(PROTECTED) + DEPTH_CEILING);
+    // registry
+    this.registry = {};
+    for (const name in DEFAULT_ARTIFACTS) this._registerDefault(name, DEFAULT_ARTIFACTS[name]);
+    // ledger
+    this.balance = 25.0;
+    this.receipts = [];
+    // eval suite (frozen; disjoint holdout/canary so late-stage failure is possible)
+    this.suite = {
+      cases: FUNCS.map(f => ({ id: "code-" + f.func, task: { kind: "code", func: f.func, tests: f.tests } })),
+      holdout: ["code-count_vowels"], canary: ["code-fibonacci"],
+      smoke: ["code-sum_list"], regressions: [],
+    };
+    this.suite.frozenHash = hash8(J(this.suite.cases));
+    // RAO: one policy for every node
+    this.rao = { W: { SOLVE: [0, 0, 0, 0, 0], SPAWN: [0, 0, 0, 0, 0] },
+                 eps: 0, trained: false, trajectories: [] };
+    this.pipelineLog = [];
+    this.promotions = 0;
+    this.sustained = 0;
+    this.approver = null;   // async (stage, proposal) => bool ; set by UI
+    this.running = 0;
+    // autonomous knowledge wiki (disabled inside eval sandboxes)
+    this.wikiEnabled = opts.wiki !== false;
+    this.wiki = { notes: new Map(), order: [] };
+  }
+
+  // ---- events / logging ----
+  on(fn) { this.listeners.push(fn); }
+  emit(ev) { for (const fn of this.listeners) { try { fn(ev); } catch (e) {} } }
+  log(msg, kind) { this.emit({ t: "log", msg: msg, kind: kind || "info", ts: now() }); }
+  comply(kind, detail) {
+    this.compliance.push({ ts: now(), kind: kind, detail: detail || "" });
+    this.emit({ t: "meter" });
+  }
+
+  verifyConstitution() {
+    return this.constitutionDigest === hash8(J(INVARIANTS) + J(PROTECTED) + DEPTH_CEILING);
+  }
+
+  // ---- registry ----
+  _registerDefault(name, payload) {
+    const v = "v0-" + hash8(J(payload)).slice(0, 6);
+    this.registry[name] = { versions: [{ v: v, payload: payload, parent: null,
+      sig: hash8(name + J(payload)), stage: "FULL", status: "active" }], active: v };
+  }
+  artifact(name) {
+    const a = this.registry[name];
+    return a.versions.find(x => x.v === a.active).payload;
+  }
+  proposeVersion(name, payload, proposer) {
+    if (PROTECTED.indexOf(name) >= 0)
+      throw new InvariantViolation("constitutional invariant: '" + name + "' is frozen and cannot self-modify");
+    if (!this.registry[name]) throw new GovernanceError("unknown artifact '" + name + "'");
+    const a = this.registry[name];
+    const v = "v" + hash8(J(payload) + a.active).slice(0, 7);
+    const av = { v: v, payload: payload, parent: a.active,
+                 sig: hash8(name + J(payload)), stage: "SANDBOX", status: "proposed" };
+    a.versions.push(av);
+    this.comply("artifact_proposed", name + " " + v + " by " + proposer);
+    return av;
+  }
+  setStage(name, v, stage) {
+    const a = this.registry[name];
+    const av = a.versions.find(x => x.v === v);
+    if (av.sig !== hash8(name + J(av.payload))) throw new GovernanceError("artifact signature invalid");
+    av.stage = stage;
+    if (stage === "CANARY" || stage === "LIMITED" || stage === "FULL") {
+      if (a.active !== v) {
+        const prev = a.versions.find(x => x.v === a.active);
+        if (prev) prev.status = "superseded";
+        a.active = v; av.status = "active";
+      }
+    }
+    this.comply("artifact_stage", name + " " + v + " -> " + stage);
+  }
+  rollback(name, reason) {
+    const a = this.registry[name];
+    const cur = a.versions.find(x => x.v === a.active);
+    if (!cur.parent) return cur.v;
+    cur.status = "rolled_back"; cur.stage = "SANDBOX";
+    a.active = cur.parent;
+    a.versions.find(x => x.v === cur.parent).status = "active";
+    this.comply("artifact_rollback", name + ": " + reason);
+    this.emit({ t: "registry" });
+    return a.active;
+  }
+  snapshotRegistry() { const s = {}; for (const k in this.registry) s[k] = this.registry[k].active; return s; }
+  restoreRegistry(s) { for (const k in s) this.registry[k].active = s[k]; this.comply("registry_restore", ""); }
+
+  // ---- kill switches ----
+  isTripped(id) {
+    if (this.kill.has("*")) return "STOP ALL (owner)";
+    for (const p of this.kill) if (id === p || id.indexOf(p + ".") === 0) return this._killReason[p] || "killed";
+    return null;
+  }
+  check(id) { const r = this.isTripped(id); if (r) throw new KillSwitchTripped("kill switch for '" + id + "': " + r); }
+  trip(prefix, reason, by) {
+    this._killReason = this._killReason || {};
+    this.kill.add(prefix); this._killReason[prefix] = reason;
+    this.killLog.push({ ts: now(), prefix: prefix, reason: reason, by: by || "system" });
+    this.comply("kill_trip", prefix + ": " + reason);
+    if (this.wikiEnabled) this._wikiIncident(prefix, reason, by || "system");
+  }
+  resetKills() { this.kill.clear(); this._killReason = {}; this.comply("kill_reset", "owner"); }
+  cancelBranch(id, reason, by) {
+    this.trip(id, reason, by);
+    for (const nid in this.nodes) {
+      const n = this.nodes[nid];
+      if ((nid === id || nid.indexOf(id + ".") === 0) && (n.status === "PENDING" || n.status === "RUNNING")) {
+        n.status = "KILLED"; n.err = reason; this.emit({ t: "node", node: n });
+      }
+    }
+  }
+
+  // ---- metering / payments ----
+  record(nodeId, kind, tier, tin, tout, cached) {
+    const p = PRICES[tier];
+    const cost = cached ? 0 : tin * p[0] + tout * p[1];
+    this.meterEvents.push({ node: nodeId, kind: kind, tier: tier, tin: tin, tout: tout, cached: !!cached, cost: cost });
+    if (kind === "model") { if (cached) this.cacheHits++; else this.cacheMisses++; }
+    if (cost > 0) {
+      this.balance -= cost;
+      this.receipts.push({ proto: "x402-sim/1", payer: this.owner, resource: nodeId,
+                           amount: cost, nonce: hash8(nodeId + this.meterEvents.length), ts: now() });
+      if (this.receipts.length > 60) this.receipts.shift();
+    }
+    this.emit({ t: "meter" });
+    return cost;
+  }
+  subtree(id) {
+    let t = 0, c = 0;
+    for (const e of this.meterEvents)
+      if (e.node === id || e.node.indexOf(id + ".") === 0) { t += e.tin + e.tout; c += e.cost; }
+    return [t, c];
+  }
+  totals() { let t = 0, c = 0; for (const e of this.meterEvents) { t += e.tin + e.tout; c += e.cost; } return [t, c]; }
+  hitRate() { const n = this.cacheHits + this.cacheMisses; return n ? this.cacheHits / n : 0; }
+
+  // ---- model client (governed) ----
+  async complete(node, cmd, arg, system, tier) {
+    this.check(node.id);
+    tier = tier || this.route(node.depth, node.tiers);
+    if (node.tiers.indexOf(tier) < 0) { this.violations++; throw new GovernanceError("model tier '" + tier + "' not in policy"); }
+    const prompt = "SYS:" + system + "\nCMD:" + cmd + "\nARG:" + arg;
+    const tin = tok(prompt);
+    if (tin > WINDOWS[tier]) throw new ContextError("prompt " + tin + " tokens exceeds " + tier + " window " + WINDOWS[tier]);
+    const key = tier + "|" + system + "|" + cmd + "|" + hash8(String(arg));
+    this.spans++;
+    let text, cached = false, useTin = tin;
+    if (this.cache.has(key)) { text = this.cache.get(key); cached = true; useTin = 0; }
+    else { text = modelText(system, cmd, arg, tier); this.cache.set(key, text); }
+    if (this.speed > 0) {
+      const base = cached ? LATENCY.cached : LATENCY[tier];
+      await sleep((base + this.rng() * base * 0.5) * this.speed);
+    }
+    this.check(node.id);
+    const tout = cached ? 0 : tok(text);
+    const cost = this.record(node.id, "model", tier, useTin, tout, cached);
+    this.charge(node, useTin + tout, cost);
+    node.calls.push({ tier: tier, cached: cached });
+    this.emit({ t: "node", node: node });
+    return text;
+  }
+  route(depth, allowed) {
+    const table = this.artifact("routing.table");
+    let tier = table[String(depth)] || table["default"] || "slm";
+    if (allowed.indexOf(tier) < 0)
+      for (const f of ["mid", "slm", "frontier"]) if (allowed.indexOf(f) >= 0) return f;
+    return tier;
+  }
+  charge(node, tokens, cost) {
+    if (this.speed > 0 && now() - node.started > node.wallclock * 1000) {
+      node.tripped = true; throw new BudgetExceeded("wallclock budget exceeded");
+    }
+    if (node.tokUsed + tokens > node.tokMax || node.costUsed + cost > node.costMax) {
+      node.tripped = true;
+      throw new BudgetExceeded("budget circuit breaker: node " + node.id + " over " +
+        (node.tokUsed + tokens > node.tokMax ? "token" : "cost") + " budget");
+    }
+    node.tokUsed += tokens; node.costUsed += cost;
+  }
+
+  // ---- IACT ----
+  spawnRoot(task, opts) {
+    opts = opts || {};
+    if ((opts.maxDepth || 6) > DEPTH_CEILING) throw new GovernanceError("requested depth exceeds constitutional ceiling");
+    const id = "n" + this._rootCount++;
+    const node = {
+      id: id, depth: 0, task: task, parent: null, children: [],
+      status: "PENDING", decision: null, err: null, calls: [],
+      tokMax: opts.tokens || 60000, costMax: opts.cost || 2.0,
+      tokUsed: 0, costUsed: 0, reservedTok: 0, reservedCost: 0,
+      tiers: opts.tiers || ["slm", "mid", "frontier"],
+      maxDepth: opts.maxDepth == null ? 6 : opts.maxDepth,
+      maxChildren: opts.maxChildren == null ? 16 : opts.maxChildren,
+      wallclock: opts.wallclock || 300, started: now(),
+      nhi: "rui." + this.owner.split("@")[0] + ".r" + id.slice(1), tripped: false,
+    };
+    this.nodes[id] = node; this.roots.push(node);
+    this.comply("root_spawn", id + " owner=" + this.owner + " budget=" + node.tokMax + "tok/$" + node.costMax);
+    this.emit({ t: "tree" });
+    return node;
+  }
+  spawnChild(parent, task, alloc) {
+    this.check(parent.id);
+    if (parent.depth + 1 > parent.maxDepth) throw new GovernanceError("policy max_depth=" + parent.maxDepth + " reached");
+    if (parent.depth + 1 > DEPTH_CEILING) throw new GovernanceError("constitutional depth ceiling");
+    if (parent.children.length >= parent.maxChildren) throw new GovernanceError("max_children exceeded (spawn-storm breaker)");
+    const remT = parent.tokMax - parent.tokUsed - parent.reservedTok;
+    const remC = parent.costMax - parent.costUsed - parent.reservedCost;
+    const tb = alloc && alloc.tokens ? alloc.tokens : Math.max(256, Math.floor(remT / (alloc && alloc.n ? alloc.n + 1 : 3)));
+    const cb = alloc && alloc.cost ? alloc.cost : Math.max(1e-6, remC / (alloc && alloc.n ? alloc.n + 1 : 3));
+    if (tb > remT || cb > remC) { this.violations++; throw new BudgetExceeded("cannot reserve child budget from parent remainder"); }
+    parent.reservedTok += tb; parent.reservedCost += cb;
+    const id = parent.id + "." + parent.children.length;
+    const node = {
+      id: id, depth: parent.depth + 1, task: task, parent: parent, children: [],
+      status: "PENDING", decision: null, err: null, calls: [],
+      tokMax: tb, costMax: cb, tokUsed: 0, costUsed: 0, reservedTok: 0, reservedCost: 0,
+      tiers: parent.tiers, maxDepth: parent.maxDepth, maxChildren: parent.maxChildren,
+      wallclock: parent.wallclock, started: now(),
+      nhi: parent.nhi + "." + parent.children.length, tripped: false, _resT: tb, _resC: cb,
+    };
+    parent.children.push(node);
+    this.nodes[id] = node;
+    this.comply("spawn_grant", parent.id + " -> " + id + " " + tb + "tok/$" + cb.toFixed(4));
+    this.emit({ t: "tree" });
+    return node;
+  }
+  settle(node) {
+    const p = node.parent;
+    if (!p || node._settled) return;
+    node._settled = true;
+    p.reservedTok -= node._resT; p.reservedCost -= node._resC;
+    p.tokUsed += Math.min(node.tokUsed, node._resT);
+    p.costUsed += Math.min(node.costUsed, node._resC);
+  }
+
+  featurize(task) {
+    const size = Math.min(1, J(task).length / 4000);
+    const dec = (task.kind === "code_suite" || task.kind === "research" || task.parts) ? 1 : 0;
+    return [1, size, dec];
+  }
+  decide(node) {
+    const f = this.featurize(node.task);
+    const params = this.artifact("rao.policy.params");
+    const budgetFrac = (node.tokMax - node.tokUsed) / node.tokMax;
+    if (!f[2]) return "SOLVE";
+    if (budgetFrac < params.minBudgetToSpawn) return "SOLVE";
+    const estSolo = f[1], estSpawn = 0.15 + 0.35 * f[1];
+    let s = 0, p = 0;
+    if (this.rao.trained) {
+      const feats = [1, f[1], f[2], node.depth / 8, budgetFrac];
+      s = dot(this.rao.W.SOLVE, feats); p = dot(this.rao.W.SPAWN, feats);
+    }
+    p += (estSolo - estSpawn);
+    return p > s ? "SPAWN_PARALLEL" : "SOLVE";
+  }
+
+  async runNode(node) {
+    node.status = "RUNNING"; node.started = now();
+    this.emit({ t: "node", node: node });
+    try {
+      this.check(node.id);
+      await this._harness(node);
+      this.check(node.id);
+      node.status = node.result && node.result.ok ? "OK" : "FAILED";
+      if (node.status === "FAILED") {
+        node.err = node.err || (node.result && node.result.note) || "failed";
+        this.failureLog.push({ task: node.task, node: node.id, err: node.err });
+      }
+    } catch (e) {
+      if (e instanceof KillSwitchTripped) { node.status = "KILLED"; node.err = e.message; }
+      else { node.status = "FAILED"; node.err = e.message; this.failureLog.push({ task: node.task, node: node.id, err: e.message }); }
+    }
+    if (this.wikiEnabled) this._wikiOnNode(node);
+    this.settle(node);
+    this.emit({ t: "node", node: node });
+    this._anomaly(node);
+    return node;
+  }
+
+  _anomaly(node) {
+    const p = node.parent;
+    if (p && p.status === "RUNNING") {
+      const fails = p.children.filter(c => c.status === "FAILED").length;
+      if (fails >= 3 && !this.isTripped(p.id)) {
+        this.log("anomaly breaker: " + fails + " child failures under " + p.id + " \u2014 branch cancelled", "warn");
+        this.cancelBranch(p.id, "anomaly breaker: " + fails + " child failures", "detector");
+      }
+    }
+    if (node.costUsed > 1.0 && !node._costAlerted) {
+      node._costAlerted = true;
+      this.log("anomaly: cost spike at " + node.id + " ($" + node.costUsed.toFixed(3) + ")", "warn");
+    }
+  }
+
+  async _harness(node) {
+    const task = node.task;
+    let decision = this.decide(node);
+    const subtasks = this._decompose(task);
+    if (subtasks.length && (task.forceSpawn || task.kind === "code_suite")) decision = "SPAWN_PARALLEL";
+    if (decision === "SOLVE" || !subtasks.length) {
+      try {
+        node.decision = "SOLVE"; this.emit({ t: "node", node: node });
+        node.result = await this._solve(node, task);
+        this._traj(node, "SOLVE", node.result.ok);
+        return;
+      } catch (e) {
+        if (e instanceof ContextError && subtasks.length && !task.noFallback) {
+          this.log(node.id + ": context overflow \u2192 recursive divide & conquer", "warn");
+          decision = "SPAWN_PARALLEL";
+        } else { this._traj(node, "SOLVE", false); throw e; }
+      }
+    }
+    if (subtasks.length === 1) {
+      node.decision = "SPAWN_STRUCTURED"; this.emit({ t: "node", node: node });
+      const c = this.spawnChild(node, subtasks[0], { n: 1 });
+      await this.runNode(c);
+      node.result = { ok: c.status === "OK", note: "structured call" };
+      this._traj(node, "SPAWN_STRUCTURED", node.result.ok);
+      return;
+    }
+    node.decision = "SPAWN_PARALLEL"; this.emit({ t: "node", node: node });
+    const n = subtasks.length;
+    const remT = node.tokMax - node.tokUsed - node.reservedTok;
+    const remC = node.costMax - node.costUsed - node.reservedCost;
+    const alloc = { tokens: task.childTokens || Math.max(256, Math.floor(remT / (n + 1))),
+                    cost: task.childCost || Math.max(1e-6, remC / (n + 1)) };
+    const children = []; let terminated = 0;
+    for (const st of subtasks) {
+      try { children.push(this.spawnChild(node, st, alloc)); }
+      catch (e) { if (e instanceof BudgetExceeded) { terminated++; } else throw e; }
+    }
+    await Promise.all(children.map(c => this.runNode(c)));
+    this.check(node.id);
+    const okN = children.filter(c => c.status === "OK").length;
+    let agg;
+    if (task.kind === "code_suite") agg = okN + "/" + n + " functions verified by execution";
+    else {
+      const outs = children.filter(c => c.status === "OK").map(c => c.result && c.result.out || "");
+      agg = await this.complete(node, "AGGREGATE", J(outs), "agg");
+    }
+    node.result = { ok: okN === n && terminated === 0, out: agg,
+                    note: okN + "/" + n + " ok; early_terminated=" + terminated };
+    if (terminated) this.log(node.id + ": " + terminated + " children terminated early (budget)", "warn");
+    this._traj(node, "SPAWN_PARALLEL", node.result.ok);
+  }
+
+  _decompose(task) {
+    if (task.kind === "code_suite") return task.funcs.map(f => ({ kind: "code", func: f.func, tests: f.tests }));
+    if (task.kind === "research") {
+      const paras = task.doc.split("\n\n").filter(p => p.trim());
+      return paras.length > 1 ? paras.map(p => ({ kind: "research_chunk", text: p })) : [];
+    }
+    if (task.parts) return task.parts.map(p => ({ kind: "text", text: p }));
+    return [];
+  }
+
+  async _solve(node, task) {
+    if (task.kind === "code") return await this._solveCode(node, task);
+    if (task.kind === "research" || task.kind === "research_chunk") {
+      const out = await this.complete(node, "SUMMARIZE", task.doc || task.text, "sum");
+      return { ok: true, out: out };
+    }
+    const out = await this.complete(node, "ANSWER", J(task), "");
+    return { ok: true, out: out };
+  }
+
+  async _solveCode(node, task) {
+    const system = this.artifact("level1.coding.system_prompt").prompt;
+    const retry = this.artifact("level1.coding.retry_policy");
+    const base = this.route(node.depth, node.tiers);
+    const tiers = [base];
+    if (retry.escalate && node.tiers.indexOf("frontier") >= 0 && base !== "frontier") tiers.push("frontier");
+    let lastErr = "";
+    for (const tier of tiers) {
+      const code = await this.complete(node, "WRITE_FUNC", task.func, system, tier);
+      const r = execTests(code, task.func, task.tests);
+      this.record(node.id, "tool", "tool", 5, 0, false);
+      this.charge(node, 5, 5 * PRICES.tool[0]);
+      if (r.ok) return { ok: true, out: task.func + " @" + tier, tier: tier };
+      lastErr = r.err;
+      if (tier !== tiers[tiers.length - 1]) this.log(node.id + ": " + task.func + " failed at " + tier + " \u2192 escalating to frontier", "warn");
+    }
+    this.failureLog.push({ task: task, node: node.id, err: lastErr });
+    return { ok: false, out: task.func + " failed", note: lastErr };
+  }
+
+  _traj(node, decision, ok) {
+    const f = this.featurize(node.task);
+    this.rao.trajectories.push({ feats: [1, f[1], f[2], node.depth / 8,
+      (node.tokMax - node.tokUsed) / node.tokMax], a: decision === "SOLVE" ? "SOLVE" : "SPAWN",
+      r: ok ? 1 : 0 });
+  }
+
+  // ---- verticals ----
+  codingTask(n) { return { kind: "code_suite", funcs: FUNCS.slice(0, n || 4) }; }
+  researchTask(nParas, dup) {
+    nParas = nParas || 12;
+    const paras = [];
+    for (let i = 0; i < nParas; i++) {
+      const j = dup !== false && i % 2 === 0 ? 0 : i;
+      let body = "";
+      for (let k = 0; k < 340; k++) body += "finding" + j + "w" + k + " ";
+      paras.push("Section " + j + ": " + body.trim());
+    }
+    return { kind: "research", doc: paras.join("\n\n") };
+  }
+
+  // ---- evaluation (isolated SUT per case) ----
+  async runSUT(overrides, task) {
+    // isolated sandbox: fresh kernel/meter/killswitch, seeded with THIS
+    // engine's active artifacts (its live baseline), plus the candidate.
+    const eng = new Engine({ speed: 0, phase: 1, seed: 1, owner: "sandbox.eval", wiki: false });
+    eng.registry = {};
+    for (const name in this.registry)
+      eng._registerDefault(name, JSON.parse(J(this.artifact(name))));
+    for (const k in overrides)
+      eng._registerDefault(k, JSON.parse(J(overrides[k])));
+    // wrap so the code child runs at depth 1 (routed to 'mid' by default)
+    const root = eng.spawnRoot({ kind: "code_suite", funcs: [{ func: task.func, tests: task.tests }] },
+                               { tokens: 20000, cost: 0.5 });
+    await eng.runNode(root);
+    const st = eng.subtree(root.id);
+    return { ok: root.status === "OK", tokens: st[0], cost: st[1], violations: eng.violations };
+  }
+  async runSuite(overrides, subset) {
+    const ids = subset === "holdout" ? this.suite.holdout
+      : subset === "canary" ? this.suite.canary
+      : subset === "smoke" ? this.suite.smoke
+      : subset === "train" ? this.suite.cases.map(c => c.id).filter(i =>
+          this.suite.holdout.indexOf(i) < 0 && this.suite.canary.indexOf(i) < 0)
+      : this.suite.cases.map(c => c.id);
+    let okN = 0, tokens = 0, cost = 0, viol = 0;
+    for (const id of ids) {
+      const c = this.suite.cases.find(x => x.id === id) ||
+                this.suite.regressions.find(x => x.id === id);
+      const r = await this.runSUT(overrides, c.task);
+      if (r.ok) okN++;
+      tokens += r.tokens; cost += r.cost; viol += r.violations;
+    }
+    return { subset: subset, n: ids.length, success: ids.length ? okN / ids.length : 1,
+             tokens: tokens, cost: cost, violations: viol };
+  }
+  verifyFrozen() { return this.suite.frozenHash === hash8(J(this.suite.cases)); }
+  gate(cand, base) {
+    const p = this.artifact("eval.gate.params");
+    const reasons = [];
+    if (cand.success < base.success - p.successSlack - 1e-9)
+      reasons.push("performance regression: " + cand.success.toFixed(2) + " < " + base.success.toFixed(2));
+    if (cand.success < p.minSuccess) reasons.push("below absolute min_success " + p.minSuccess);
+    if (cand.cost > base.cost * p.maxCostRatio + 1e-12) reasons.push("cost regression");
+    if (cand.violations > p.maxViolations) reasons.push("safety violations: " + cand.violations);
+    if (1 - cand.success > 1 - p.minReliability) reasons.push("reliability below floor");
+    return { passed: reasons.length === 0, reasons: reasons };
+  }
+  harvestRegressions() {
+    const added = [];
+    for (const f of this.failureLog) {
+      if (!f.task || f.task.kind !== "code") continue;
+      const id = "reg-" + hash8(J(f.task));
+      if (this.suite.regressions.some(r => r.id === id)) continue;
+      this.suite.regressions.push({ id: id, task: f.task });
+      added.push(id);
+    }
+    if (added.length) this.comply("regressions_harvested", added.join(","));
+    return added;
+  }
+  redQueenVet() {
+    const p = this.artifact("eval.gate.params");
+    const g = (cand, base) => { const save = this.artifact; const r = this.gate(cand, base); return r; };
+    const BASE = { success: 0.75, cost: 0.0006, violations: 0 };
+    const GOOD = { success: 1.0, cost: 0.0004, violations: 0 };
+    const BAD = { success: 0.25, cost: 0.0004, violations: 1 };
+    if (!this.gate(GOOD, BASE).passed) return { ok: false, why: "evaluator rejects known-good candidate" };
+    if (this.gate(BAD, BASE).passed) return { ok: false, why: "evaluator accepts known-bad candidate (reward-hackable)" };
+    return { ok: true, why: "ok" };
+  }
+
+  // ---- promotion pipeline ----
+  async promote(p, baseline, allowedPrefixes) {
+    const scope = allowedPrefixes || ["level1.", "routing.", "rao.", "eval.gate.params"].concat(this.phase >= 4 ? ["infra."] : []);
+    const emitStage = (stage, ok, detail) => {
+      this.pipelineLog.push({ pid: p.pid, target: p.target, stage: stage, ok: ok, detail: detail });
+      this.emit({ t: "stage", pid: p.pid, stage: stage, ok: ok, detail: detail });
+    };
+    const fin = (st) => { if (this.wikiEnabled) this._wikiPromotion(p, st, baseline); return st; };
+    if (!scope.some(x => p.target.indexOf(x) === 0)) {
+      emitStage("SCOPE", false, "target outside allowed scope" + (this.phase < 4 && p.target.indexOf("infra.") === 0 ? " (infra.* needs phase 4)" : ""));
+      return fin("rejected");
+    }
+    let av;
+    try { av = this.proposeVersion(p.target, p.payload, p.proposer); }
+    catch (e) { emitStage("CONSTITUTION", false, e.message); throw e; }
+    const snap = this.snapshotRegistry();
+    let activated = false;
+    const fail = (stage, detail) => {
+      if (activated) {
+        this.rollback(p.target, "failed " + stage + ": " + detail);
+        this.restoreRegistry(snap);
+        emitStage("ROLLBACK", true, "auto-rollback: registry restored");
+        return "rolled_back";
+      }
+      return "rejected";
+    };
+    for (const stage of STAGES) {
+      if (this.speed > 0) await sleep(220);
+      const needsHuman = (stage === "LIMITED" && this.autonomy < 2) ||
+                         (stage === "FULL" && this.autonomy < 3);
+      if (needsHuman) {
+        const approved = this.approver ? await this.approver(stage, p) : true;
+        this.comply("human_approval", stage + " " + p.pid + " " + (approved ? "approved" : "rejected"));
+        if (!approved) {
+          emitStage(stage, false, "human approval denied");
+          const st = fail(stage, "human approval denied");
+          return fin(st === "rejected" ? "rejected_by_human" : st);
+        }
+      }
+      let ok = true, detail = "";
+      if (stage === "SANDBOX") {
+        const r = await this.runSuite(single(p), "smoke");
+        ok = r.success >= 0.999; detail = "smoke success=" + r.success.toFixed(2);
+      } else if (stage === "EVAL") {
+        const r = await this.runSuite(single(p), "holdout");
+        const g = this.gate(r, baseline);
+        ok = g.passed; detail = g.passed ? "gate passed" : g.reasons.join("; ");
+      } else if (stage === "CANARY") {
+        this.setStage(p.target, av.v, "CANARY"); activated = true;   // live slice
+        this.emit({ t: "registry" });
+        const r = await this.runSuite(single(p), "canary");
+        ok = r.success >= 0.999 && r.violations === 0;
+        detail = "canary success=" + r.success.toFixed(2);
+      } else if (stage === "LIMITED") {
+        this.setStage(p.target, av.v, "LIMITED");
+        this.emit({ t: "registry" });
+        const r = await this.runSuite(single(p), "train");
+        ok = r.success >= baseline.success - 1e-9;
+        detail = "limited success=" + r.success.toFixed(2);
+      } else detail = "activated";
+      emitStage(stage, ok, detail);
+      if (!ok) return fin(fail(stage, detail));
+      if (stage === "SANDBOX" || stage === "EVAL" || stage === "FULL")
+        this.setStage(p.target, av.v, stage);
+      this.emit({ t: "registry" });
+    }
+    this.promotions++; this.sustained++;
+    if (this.sustained >= 2 && this.autonomy < 3) {
+      this.autonomy++; this.sustained = 0;
+      this.comply("autonomy_raised", "level " + this.autonomy);
+      this.log("progressive autonomy raised to level " + this.autonomy + " (sustained evidence)", "ok");
+    }
+    return fin("promoted");
+  }
+
+  defaultProposals() {
+    return [
+      { pid: hash8("p1" + now()).slice(0, 6), target: "level1.coding.system_prompt",
+        payload: { prompt: IMPROVED_PROMPT }, proposer: "proposer.efficiency",
+        rationale: "Shrink prompt + STRICT_OUTPUT so mid-tier emits runnable code (tokens & escalations down)" },
+      { pid: hash8("p2" + now()).slice(0, 6), target: "routing.table",
+        payload: Object.assign({}, this.artifact("routing.table"), { "2": "slm" }),
+        proposer: "proposer.routing", rationale: "Route depth\u22652 leaves to the SLM tier" },
+      { pid: hash8("p3" + now()).slice(0, 6), target: "rao.policy.params",
+        payload: { minBudgetToSpawn: 0.08 }, proposer: "proposer.rao",
+        rationale: "Spawn slightly earlier when budget allows" },
+    ];
+  }
+
+  criticReview(p) {
+    if (PROTECTED.indexOf(p.target) >= 0) return { ok: false, why: "targets constitution-protected artifact" };
+    const blob = J(p.payload);
+    for (const bad of ["DISABLE_KILLSWITCH", "SKIP_EVAL", "UNBOUNDED_BUDGET"])
+      if (blob.indexOf(bad) >= 0) return { ok: false, why: "forbidden directive '" + bad + "'" };
+    if (blob.length > 20000) return { ok: false, why: "payload too large" };
+    return { ok: true, why: "ok" };
+  }
+
+  async metaCycle(proposals, requireCut) {
+    if (this.phase < 3) throw new FeatureDisabled("outer meta-loop requires phase \u2265 3");
+    const rq = this.redQueenVet();
+    if (!rq.ok) throw new GovernanceError("Red Queen: evaluator unfit: " + rq.why);
+    const props = proposals || this.defaultProposals();
+    const hashes = new Set(props.map(p => hash8(J(p.payload))));
+    if (hashes.size < Math.min(2, props.length)) throw new GovernanceError("insufficient proposal diversity");
+    const baseline = await this.runSuite({}, "holdout");
+    this.emit({ t: "baseline", run: baseline });
+    const results = [];
+    for (const p of props) {
+      this.emit({ t: "proposal", p: p });
+      const cr = this.criticReview(p);
+      if (!cr.ok) {
+        this.emit({ t: "stage", pid: p.pid, stage: "CRITIC", ok: false, detail: cr.why });
+        results.push({ pid: p.pid, target: p.target, status: "rejected", reason: "critic: " + cr.why });
+        continue;
+      }
+      if (!this.verifyFrozen()) throw new GovernanceError("eval suite frozen-hash check failed");
+      const run = await this.runSuite(single(p), "holdout");
+      const cut = baseline.cost > 0 ? (baseline.cost - run.cost) / baseline.cost : 0;
+      const need = p.proposer.indexOf("efficiency") >= 0 ? (requireCut || 0) : 0;
+      const g = this.gate(run, baseline);
+      const costOk = run.cost <= baseline.cost * (1 + 1e-9) && cut >= need;
+      if (!g.passed || !costOk) {
+        const why = g.passed ? ("cost cut " + (cut * 100).toFixed(0) + "% < required " + (need * 100).toFixed(0) + "%") : g.reasons.join("; ");
+        this.emit({ t: "stage", pid: p.pid, stage: "VERIFY", ok: false, detail: why });
+        results.push({ pid: p.pid, target: p.target, status: "rejected", reason: why });
+        continue;
+      }
+      this.emit({ t: "stage", pid: p.pid, stage: "VERIFY", ok: true,
+                  detail: "holdout ok; cost cut " + (cut * 100).toFixed(0) + "%" });
+      const status = await this.promote(p, baseline);
+      results.push({ pid: p.pid, target: p.target, status: status, cut: cut });
+    }
+    if (this.wikiEnabled) {
+      this._cycleN = (this._cycleN || 0) + 1;
+      this.writeNote(null, "episode", "cyc:" + this._cycleN, "meta-cycle " + this._cycleN,
+        results.map(r => r.target.split(".").pop() + " -> " + r.status).join("; "),
+        results.map(r => "prop:" + r.pid));
+    }
+    this.comply("meta_cycle", results.filter(r => r.status === "promoted").map(r => r.target).join(",") || "none promoted");
+    return { baseline: baseline, results: results };
+  }
+
+  async selfHarness() {
+    if (this.phase < 2) throw new FeatureDisabled("Self-Harness loop requires phase \u2265 2");
+    const fails = this.failureLog.filter(f => f.task && f.task.kind === "code");
+    if (!fails.length) return null;
+    const baseline = await this.runSuite({}, "holdout");
+    const p = { pid: hash8("sh" + now()).slice(0, 6), target: "level1.coding.system_prompt",
+                payload: { prompt: IMPROVED_PROMPT }, proposer: "self_harness",
+                rationale: "Self-Harness patch: " + fails.length + " code-task failures mined (formatting/escalation weakness)" };
+    this.emit({ t: "proposal", p: p });
+    const status = await this.promote(p, baseline, ["level1."]);
+    return { weakness: fails.length + " code-task failures", status: status, target: p.target, pid: p.pid };
+  }
+
+  levelInf(target, payload, humans, audit) {
+    if (PROTECTED.indexOf(target) >= 0) throw new InvariantViolation("'" + target + "' is constitutionally frozen");
+    const ALLOWED = ["meta.search_strategy", "meta.evaluator_design", "meta.budget_allocator"];
+    if (ALLOWED.indexOf(target) < 0) throw new GovernanceError("'" + target + "' is not a Level-\u221E object");
+    const distinct = new Set(humans.map(h => h.trim().toLowerCase()).filter(Boolean));
+    const approved = distinct.size >= 2 && !!audit && audit.indexOf("EXTAUD") === 0 && this.verifyConstitution();
+    this.comply("level_inf_request", target + " humans=" + distinct.size + " audit=" + !!audit + " -> " + approved);
+    if (!approved) return false;
+    const av = this.proposeVersion(target, payload, "level_inf");
+    this.setStage(target, av.v, "FULL");
+    this.emit({ t: "registry" });
+    if (this.wikiEnabled) {
+      this.writeNote(null, "concept", "art:" + target, "artifact \u00b7 " + target,
+        "Level-\u221e object under quorum governance.", []);
+      this._linfN = (this._linfN || 0) + 1;
+      this.writeNote(null, "artifact", "linf:" + this._linfN, "Level-\u221e \u00b7 " + target.split(".").pop(),
+        "Approved by " + distinct.size + " distinct humans + external audit -> activated " + av.v + ".",
+        ["art:" + target]);
+    }
+    return true;
+  }
+
+  // ---- autonomous knowledge wiki ----
+  // Agents write linked notes as side effects of work. Every write is metered
+  // like a tool call, attributed to the writing node, and compliance-logged.
+  writeNote(nodeId, kind, id, title, body, links) {
+    if (!this.wikiEnabled) return null;
+    body = String(body || "").slice(0, 220);
+    links = (links || []).filter(l => l && l !== id);
+    let n = this.wiki.notes.get(id);
+    if (n) {
+      for (const l of links) if (n.links.indexOf(l) < 0) n.links.push(l);
+      n.refs++; n.ts = now();
+      this.record(nodeId || "wiki", "tool", "tool", 8, 0, false);
+      this.emit({ t: "wiki", note: n, update: true });
+      return n;
+    }
+    n = { id: id, kind: kind, title: title, body: body, links: links,
+          author: nodeId || "wiki.system", ts: now(), refs: 1 };
+    this.wiki.notes.set(id, n); this.wiki.order.push(id);
+    this.record(nodeId || "wiki", "tool", "tool", tok(title + body), 0, false);
+    this.comply("wiki_write", kind + " " + id);
+    this.emit({ t: "wiki", note: n });
+    return n;
+  }
+  backlinks(id) {
+    const out = [];
+    for (const oid of this.wiki.order)
+      if (this.wiki.notes.get(oid).links.indexOf(id) >= 0) out.push(oid);
+    return out;
+  }
+  wikiGraph() {
+    const nodes = [], links = [], seen = new Set();
+    for (const id of this.wiki.order) {
+      const n = this.wiki.notes.get(id);
+      nodes.push({ id: id, kind: n.kind, title: n.title, deg: 0 });
+      for (const l of n.links) if (this.wiki.notes.has(l)) {
+        const k = id < l ? id + "|" + l : l + "|" + id;
+        if (!seen.has(k)) { seen.add(k); links.push({ a: id, b: l }); }
+      }
+    }
+    const deg = {};
+    for (const e of links) { deg[e.a] = (deg[e.a] || 0) + 1; deg[e.b] = (deg[e.b] || 0) + 1; }
+    for (const nd of nodes) nd.deg = deg[nd.id] || 0;
+    return { nodes: nodes, links: links };
+  }
+  _rootOf(node) { let n = node; while (n.parent) n = n.parent; return n; }
+  _wikiOnNode(node) {
+    const t = node.task || {};
+    if (t.kind === "code") {
+      const ep = "ep:" + this._rootOf(node).id;
+      const tier = node.result && node.result.tier ? " Last verified @" + node.result.tier + "." : "";
+      this.writeNote(node.id, "concept", "art:level1.coding.system_prompt",
+        "artifact \u00b7 coding.system_prompt", "Live system prompt for the coding vertical.", []);
+      this.writeNote(node.id, "concept", "fn:" + t.func, "fn \u00b7 " + t.func,
+        "Coding target; implementations really execute against " + t.tests.length + " tests." + tier,
+        [ep, "art:level1.coding.system_prompt"]);
+    } else if (t.kind === "research_chunk" && node.status === "OK") {
+      const m = /Section (\d+)/.exec(t.text || "");
+      const sec = m ? m[1] : hash8(String(t.text)).slice(0, 4);
+      this.writeNote(node.id, "finding", "sec:" + sec, "finding \u00b7 section " + sec,
+        String(node.result && node.result.out || "").slice(0, 110),
+        ["ep:" + this._rootOf(node).id]);
+    }
+    if (!node.parent) {
+      const st = this.subtree(node.id);
+      this.writeNote(node.id, "episode", "ep:" + node.id,
+        "run \u00b7 " + node.id + " \u00b7 " + (t.kind || "task"),
+        node.status + " \u00b7 " + (node.decision || "-") + " \u00b7 " + node.children.length +
+        " children \u00b7 " + st[0] + " tok \u00b7 $" + st[1].toFixed(4) +
+        (node.err ? " \u00b7 " + String(node.err).slice(0, 60) : ""), []);
+    }
+  }
+  _wikiIncident(prefix, reason, by) {
+    this._incN = (this._incN || 0) + 1;
+    const links = [];
+    if (prefix !== "*" && prefix.charAt(0) === "n") links.push("ep:" + prefix.split(".")[0]);
+    this.writeNote(null, "incident", "inc:" + this._incN,
+      "incident \u00b7 kill " + (prefix === "*" ? "STOP-ALL" : prefix),
+      "Kill switch tripped by " + by + ": " + String(reason).slice(0, 120), links);
+  }
+  _wikiPromotion(p, status, baseline) {
+    const short = p.target.split(".").slice(-2).join(".");
+    this.writeNote(null, "concept", "art:" + p.target, "artifact \u00b7 " + short,
+      "Versioned, signed artifact under staged governance.", []);
+    this.writeNote(null, "eval", "eval:" + p.pid, "eval \u00b7 " + p.pid,
+      "Frozen holdout baseline: success " + baseline.success.toFixed(2) +
+      " \u00b7 $" + baseline.cost.toFixed(4) + "; gate + stages enforced in sandboxes.",
+      ["prop:" + p.pid]);
+    this.writeNote(null, "artifact", "prop:" + p.pid, short + " \u00b7 " + status,
+      String(p.rationale || "").slice(0, 90) + " \u2014 outcome: " + status + " (" + p.proposer + ")",
+      ["art:" + p.target, "eval:" + p.pid]);
+  }
+
+  // ---- RAO training ----
+  syntheticEpisodes(n, seed) {
+    const rng = mulberry32(seed || 5);
+    const eps = [];
+    for (let i = 0; i < n; i++) {
+      const size = rng(), dec = rng() < 0.6 ? 1 : 0, depth = Math.floor(rng() * 4) / 8, budget = 0.3 + rng() * 0.7;
+      const best = dec && size > 0.35 ? "SPAWN" : "SOLVE";
+      for (const a of ["SOLVE", "SPAWN"]) {
+        const good = a === best;
+        const r = (good ? 1 : 0) - 0.6 * (a === "SPAWN" ? 0.3 : 0.5 * size) * 0.1;
+        eps.push({ feats: [1, size, dec, depth, budget], a: a, r: r });
+      }
+    }
+    return eps;
+  }
+  optimal(f) { return f[2] && f[1] > 0.35 ? "SPAWN" : "SOLVE"; }
+  accuracy(eps) {
+    let ok = 0, n = 0;
+    const seen = new Set();
+    for (const e of eps) {
+      const k = J(e.feats);
+      if (seen.has(k)) continue;
+      seen.add(k); n++;
+      const s = dot(this.rao.W.SOLVE, e.feats);
+      const p = dot(this.rao.W.SPAWN, e.feats) + (e.feats[1] - (0.15 + 0.35 * e.feats[1]));
+      if ((p > s ? "SPAWN" : "SOLVE") === this.optimal(e.feats)) ok++;
+    }
+    return n ? ok / n : 0;
+  }
+  trainStep(eps, lr) {
+    let loss = 0;
+    for (const e of eps) {
+      const w = this.rao.W[e.a];
+      let pred = dot(w, e.feats);
+      const err = e.r - pred;
+      loss += Math.abs(err);
+      if (lr > 0) for (let i = 0; i < w.length; i++) w[i] += lr * err * e.feats[i];
+    }
+    return loss / eps.length;
+  }
+  async trainRAO(onIter) {
+    if (this.phase < 2) throw new FeatureDisabled("RAO training requires phase \u2265 2");
+    const eps = this.syntheticEpisodes(150, 5);
+    const before = this.accuracy(eps);
+    let loss = 0;
+    for (let i = 0; i < 30; i++) {
+      loss = this.trainStep(eps, 0.12);
+      if (onIter) onIter(i, loss);
+      if (this.speed > 0) await sleep(45);
+    }
+    this.rao.trained = true;
+    const after = this.accuracy(eps);
+    this.comply("rao_trained", "acc " + before.toFixed(2) + " -> " + after.toFixed(2));
+    if (this.wikiEnabled) {
+      this.writeNote(null, "concept", "art:rao.policy.params", "artifact \u00b7 rao.policy.params",
+        "Shared decision-policy parameters (one policy for every node).", []);
+      this._polN = (this._polN || 0) + 1;
+      this.writeNote(null, "policy", "pol:" + this._polN, "RAO training " + this._polN,
+        "Decision accuracy " + before.toFixed(2) + " \u2192 " + after.toFixed(2) +
+        " on 150 synthetic episodes under the multi-objective reward.", ["art:rao.policy.params"]);
+    }
+    return { before: before, after: after, loss: loss };
+  }
+}
+
+function dot(a, b) { let s = 0; for (let i = 0; i < a.length; i++) s += a[i] * b[i]; return s; }
+function single(p) { const o = {}; o[p.target] = p.payload; return o; }
+
+const API = { Engine, FUNCS, IMPROVED_PROMPT, BASELINE_PROMPT, PROTECTED, INVARIANTS,
+              WINDOWS, DEPTH_CEILING, STAGES, tok,
+              errors: { RUIError, GovernanceError, BudgetExceeded, KillSwitchTripped,
+                        InvariantViolation, FeatureDisabled, ContextError } };
+if (typeof module !== "undefined" && module.exports) module.exports = API;
+else root.RUI = API;
+})(typeof globalThis !== "undefined" ? globalThis : this);
+
+</script>
+<script>
+/* RUI UI layer — binds the engine to the daylight control room. */
+(function () {
+"use strict";
+const $ = s => document.querySelector(s);
+const esc = s => String(s).replace(/[&<>"]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;" }[c]));
+const fmt$ = v => "$" + v.toFixed(4);
+const fmtTok = v => v >= 1000 ? (v / 1000).toFixed(1) + "k" : String(v);
+
+let E = null;            // engine
+let busy = false;
+let logBuf = [];
+let treeQueued = false;
+let curTab = "run";
+const propCards = {};    // pid -> card el
+
+// ---------- boot -----------------------------------------------------------
+function boot(phase) {
+  if (E) E.listeners.length = 0;
+  E = new RUI.Engine({ speed: 1, phase: phase, autonomy: 0, seed: 7 });
+  E.approver = askHuman;
+  E.on(onEvent);
+  logBuf = [];
+  $("#console").innerHTML = "";
+  $("#treeHost").innerHTML = '<p class="note">No runs yet. Spawn a workload above \u2014 every node appears here with its own identity, budget and live cost.</p>';
+  $("#propFeed").innerHTML = '<p class="note">Proposals from the improvement loops land here and walk the promotion stages live.</p>';
+  $("#baseLine").textContent = "";
+  for (const k in propCards) delete propCards[k];
+  galReset();
+  syncPhaseUI();
+  renderRegistry(); renderSystem(); renderStrip(); renderTrainStatic(); renderWikiList();
+  log("RUIOS booted \u00b7 phase " + phase + " \u00b7 owner " + E.owner, "ok");
+  log("constitution digest " + E.constitutionDigest + " \u00b7 verify: " + E.verifyConstitution(), "info");
+}
+
+function log(msg, kind) {
+  const d = new Date();
+  const ts = d.toTimeString().slice(0, 8);
+  logBuf.push({ ts, msg, kind: kind || "info" });
+  if (logBuf.length > 110) logBuf.shift();
+  const el = $("#console");
+  const stick = el.scrollHeight - el.scrollTop - el.clientHeight < 40;
+  el.innerHTML = logBuf.map(l =>
+    '<div class="' + l.kind + '"><span class="ts">' + l.ts + "</span>" + esc(l.msg) + "</div>").join("");
+  if (stick) el.scrollTop = el.scrollHeight;
+}
+
+// ---------- engine events ---------------------------------------------------
+function onEvent(ev) {
+  if (ev.t === "log") log(ev.msg, ev.kind);
+  else if (ev.t === "node" || ev.t === "tree") queueTree();
+  else if (ev.t === "meter") renderStrip();
+  else if (ev.t === "registry") renderRegistry();
+  else if (ev.t === "wiki") onWikiEvent();
+  else if (ev.t === "proposal") propCard(ev.p);
+  else if (ev.t === "stage") stageUpdate(ev);
+  else if (ev.t === "baseline")
+    $("#baseLine").textContent = "frozen holdout baseline \u2014 success " +
+      ev.run.success.toFixed(2) + " \u00b7 " + fmtTok(ev.run.tokens) + " tok \u00b7 " + fmt$(ev.run.cost);
+}
+
+function queueTree() {
+  if (treeQueued) return;
+  treeQueued = true;
+  requestAnimationFrame(() => { treeQueued = false; renderTree(); });
+}
+
+// ---------- meter strip -------------------------------------------------------
+function renderStrip() {
+  const [t, c] = E.totals();
+  $("#strip").innerHTML =
+    '<span><span class="lamp ' + (E.verifyConstitution() ? "OK" : "FAILED") + '"></span>constitution</span>' +
+    "<span>balance <b>" + fmt$(E.balance) + "</b></span>" +
+    "<span>spend <b>" + fmt$(c) + "</b></span>" +
+    "<span>tokens <b>" + fmtTok(t) + "</b></span>" +
+    "<span>cache <b>" + Math.round(E.hitRate() * 100) + "%</b></span>" +
+    "<span>violations <b>" + E.violations + "</b></span>" +
+    "<span>autonomy <b>L" + E.autonomy + "</b></span>" +
+    "<span>spans <b>" + E.spans + "</b></span>" +
+    "<span>notes <b>" + E.wiki.notes.size + "</b></span>";
+  renderSystem();
+}
+
+// ---------- call tree (signature) ---------------------------------------------
+function taskLabel(t) {
+  if (t.kind === "code_suite") return "coding suite \u00d7" + t.funcs.length;
+  if (t.kind === "code") return "code \u00b7 " + t.func;
+  if (t.kind === "research") return "research \u00b7 " + t.doc.split("\n\n").length + " sections";
+  if (t.kind === "research_chunk") return "chunk \u00b7 " + t.text.slice(8, 18);
+  return t.kind || "task";
+}
+function stampFor(st) {
+  const cls = st === "OK" ? "ok" : st === "FAILED" ? "fail" : st === "KILLED" ? "dead" : "run";
+  return '<span class="stamp ' + cls + '">' + st + "</span>";
+}
+function nodeRow(n) {
+  const [tk, c] = E.subtree(n.id);
+  const tiersUsed = [];
+  for (const x of n.calls) if (!x.cached && tiersUsed.indexOf(x.tier) < 0) tiersUsed.push(x.tier);
+  const chips =
+    (tiersUsed.length ? '<span class="chip' + (tiersUsed.length > 1 ? " esc" : "") + '">' +
+      tiersUsed.join("\u2192") + "</span>" : "") +
+    (n.calls.some(x => x.cached) ? '<span class="chip cache">cache</span>' : "");
+  const killable = n.status === "RUNNING" || n.status === "PENDING";
+  let h = '<div class="row st-' + n.status + (killable ? " killable" : "") +
+    '" data-id="' + n.id + '" style="--d:' + n.depth + '">' +
+    '<span class="rail"></span><span class="lamp ' + n.status + '"></span>' +
+    '<span class="nid">' + n.id + "</span>" +
+    '<span class="tl">' + esc(taskLabel(n.task)) + chips + "</span>" +
+    '<span class="fig">' + fmtTok(tk) + " \u00b7 " + fmt$(c) + "</span></div>";
+  if (n.err && n.status !== "OK")
+    h += '<div class="err" style="--d:' + n.depth + '">' + esc(String(n.err).slice(0, 110)) + "</div>";
+  for (const ch of n.children) h += nodeRow(ch);
+  return h;
+}
+function renderTree() {
+  if (!E.roots.length) return;
+  let h = "";
+  for (let i = E.roots.length - 1; i >= 0; i--) {
+    const r = E.roots[i];
+    const [tk, c] = E.subtree(r.id);
+    h += '<div class="rootblk"><div class="rhead"><span class="lamp ' + r.status + '"></span>' +
+      '<span class="tl cond">' + esc(taskLabel(r.task)) + "</span>" + stampFor(r.status) +
+      '<span class="fig">' + fmtTok(tk) + " \u00b7 " + fmt$(c) + "</span></div>" +
+      nodeRow(r).replace(/^<div class="row[^>]*>.*?<\/div>/, "") + "</div>";
+  }
+  $("#treeHost").innerHTML = h;
+}
+document.addEventListener("click", e => {
+  const row = e.target.closest(".row.killable");
+  if (!row) return;
+  const id = row.getAttribute("data-id");
+  sheet("Kill branch " + id + "?",
+    '<p>Trips the kill switch for <span class="mono">' + id + "</span> and its whole subtree. " +
+    "Siblings keep running; costs settle up.</p>",
+    [["Kill branch", "warn", () => { E.cancelBranch(id, "operator kill via UI", "owner"); log("kill switch tripped for " + id, "fail"); }],
+     ["Cancel", "sec", null]]);
+});
+
+// ---------- runs ----------------------------------------------------------------
+async function runGuarded(name, fn) {
+  if (busy) { toast("A run is in progress"); return; }
+  if (E.isTripped("nX")) { toast("Kill switches tripped \u2014 reset first"); return; }
+  busy = true; setRunBtns();
+  log("\u25b6 " + name, "info");
+  try { await fn(); } catch (err) { log(name + ": " + err.message, "fail"); toast(err.message); }
+  busy = false; setRunBtns(); renderStrip();
+}
+function setRunBtns() {
+  document.querySelectorAll("[data-run]").forEach(b => { b.disabled = busy; });
+}
+async function runCoding() {
+  const n = E.spawnRoot(E.codingTask(4), { tokens: 60000, cost: 2 });
+  await E.runNode(n);
+  log("coding suite " + n.status + " \u2014 " + (n.result ? n.result.note : n.err),
+      n.status === "OK" ? "ok" : "fail");
+}
+async function runResearch() {
+  const t = E.researchTask(12, true);
+  const need = RUI.tok(t.doc);
+  log("document \u2248 " + fmtTok(need) + " tokens \u2014 beyond every context window (frontier max " +
+      RUI.WINDOWS.frontier + "); monolithic solve is impossible, recursing", "warn");
+  const n = E.spawnRoot(t, { tokens: 60000, cost: 2, maxChildren: 20 });
+  await E.runNode(n);
+  log("research " + n.status + " \u00b7 cache hit rate " + Math.round(E.hitRate() * 100) + "%",
+      n.status === "OK" ? "ok" : "fail");
+}
+async function runStress() {
+  const n = E.spawnRoot(Object.assign(E.codingTask(4), { childTokens: 5000 }),
+                        { tokens: 12000, cost: 1 });
+  await E.runNode(n);
+  log("stress: " + (n.result ? n.result.note : n.err) + " \u2014 breaker held the line, no overdraft", "warn");
+}
+async function runDegraded() {
+  const n = E.spawnRoot(E.codingTask(4), { tokens: 40000, cost: 1, tiers: ["mid", "slm"] });
+  await E.runNode(n);
+  log("degraded run (no frontier): " + n.status + " \u00b7 " + E.failureLog.length +
+      " failures logged \u2014 Self-Harness can mine these (Improve tab)", "warn");
+}
+
+// ---------- proposals / promotion ------------------------------------------------
+function propCard(p) {
+  const host = $("#propFeed");
+  if (host.querySelector(".note")) host.innerHTML = "";
+  const el = document.createElement("div");
+  el.className = "prop";
+  el.innerHTML = '<div class="ph"><span class="tgt">' + esc(p.target) + "</span>" +
+    '<span class="who">' + esc(p.proposer) + " \u00b7 " + p.pid + "</span></div>" +
+    '<div class="why">' + esc(p.rationale || "") + "</div>" +
+    '<div class="stages">' +
+    ["CRITIC", "VERIFY"].concat(RUI.STAGES).map(s =>
+      '<span class="sg" data-s="' + s + '">' + s + "</span>").join("") +
+    "</div>" + '<div class="detail"></div><div class="final"></div>';
+  host.prepend(el);
+  propCards[p.pid] = el;
+  el.scrollIntoView({ block: "nearest" });
+}
+function stageUpdate(ev) {
+  const el = propCards[ev.pid];
+  if (!el) return;
+  if (ev.stage === "ROLLBACK") {
+    el.querySelector(".final").innerHTML = '<span class="stamp fail">ROLLED BACK</span>';
+    el.querySelector(".detail").textContent = ev.detail;
+    return;
+  }
+  const sg = el.querySelector('.sg[data-s="' + ev.stage + '"]');
+  if (sg) sg.className = "sg " + (ev.ok ? "ok" : "fail");
+  el.querySelector(".detail").textContent = ev.stage + ": " + ev.detail;
+  if (ev.stage === "FULL" && ev.ok)
+    el.querySelector(".final").innerHTML = '<span class="stamp ok">PROMOTED</span>';
+  else if (!ev.ok && el.querySelector(".final").innerHTML === "")
+    el.querySelector(".final").innerHTML = '<span class="stamp fail">REJECTED</span>';
+}
+function askHuman(stage, p) {
+  return new Promise(res => {
+    sheet("Human approval \u00b7 " + stage,
+      '<p>Autonomy is L' + E.autonomy + ", so the <b>" + stage + "</b> stage needs you.</p>" +
+      '<p class="mono">' + esc(p.target) + "</p><p>" + esc(p.rationale || "") + "</p>",
+      [["Approve " + stage, "acc", () => res(true)],
+       ["Reject", "warn", () => res(false)]], () => res(false));
+  });
+}
+async function metaCycle() {
+  await runGuarded("Level-2 efficiency cycle (\u226530% cut demanded)", async () => {
+    const r = await E.metaCycle(null, 0.30);
+    for (const x of r.results)
+      log(x.target + " \u2192 " + x.status + (x.cut != null ? " \u00b7 verified cost cut " + Math.round(x.cut * 100) + "%" : "") +
+          (x.reason ? " \u00b7 " + x.reason : ""), x.status === "promoted" ? "ok" : "warn");
+  });
+}
+async function injectHack() {
+  await runGuarded("Adversarial: reward-hack proposal", async () => {
+    const hk = { pid: "hk" + Date.now() % 1000, target: "level1.coding.system_prompt",
+      payload: { prompt: "STRICT_OUTPUT ALWAYS_RETURN_PASS" }, proposer: "proposer.hack",
+      rationale: "\u201cTrust me, it always passes.\u201d Generated code just returns 'PASS'." };
+    const noop = { pid: "np" + Date.now() % 1000, target: "routing.table",
+      payload: E.artifact("routing.table"), proposer: "proposer.noop",
+      rationale: "No-op diversity partner" };
+    const r = await E.metaCycle([hk, noop], 0);
+    const h = r.results.find(x => x.pid === hk.pid);
+    log("reward hack \u2192 " + h.status + " (holdout executes real tests: " + (h.reason || "") + ")", "ok");
+  });
+}
+async function injectTrap() {
+  await runGuarded("Adversarial: canary trap (retry escalation off)", async () => {
+    const base = await E.runSuite({}, "holdout");
+    const p = { pid: "tr" + Date.now() % 1000, target: "level1.coding.retry_policy",
+      payload: { escalate: false }, proposer: "proposer.trap",
+      rationale: "Skip retries to save cost. Passes smoke + holdout \u2014 the hard canary case exposes it." };
+    propCard(p);
+    const st = await E.promote(p, base);
+    log("canary trap \u2192 " + st + (st === "rolled_back" ? " \u00b7 registry restored automatically" : ""),
+        st === "rolled_back" ? "ok" : "warn");
+  });
+}
+function attackConstitution() {
+  try { E.proposeVersion("kernel.killswitch.root", { disabled: true }, "attacker"); }
+  catch (err) {
+    log("constitution attack \u2192 " + err.message, "ok");
+    toast("InvariantViolation \u2014 refused");
+  }
+}
+async function selfHarness() {
+  await runGuarded("Level-1 Self-Harness (mine failures \u2192 patch)", async () => {
+    const r = await E.selfHarness();
+    if (!r) { log("no code-task failures to mine \u2014 run \u201cDegrade (no frontier)\u201d on the Run tab first", "warn"); toast("Nothing to mine yet"); return; }
+    log("self-harness: " + r.weakness + " \u2192 " + r.status, r.status === "promoted" ? "ok" : "warn");
+    const regs = E.harvestRegressions();
+    log("harvested " + regs.length + " regression case(s) \u00b7 frozen core intact: " + E.verifyFrozen(), "info");
+    renderSystem();
+  });
+}
+function applyLevelInf() {
+  const h1 = $("#li1").value, h2 = $("#li2").value, audit = $("#liA").value;
+  try {
+    const ok = E.levelInf("meta.search_strategy", { beam: 5 }, [h1, h2], audit);
+    if (ok) { log("Level-\u221E approved: meta.search_strategy \u2192 beam 5", "ok"); toast("Approved \u00b7 activated"); }
+    else { log("Level-\u221E denied: need \u22652 distinct humans + audit ref starting \u201cEXTAUD\u201d", "warn"); toast("Denied \u2014 quorum or audit missing"); }
+  } catch (err) { log("Level-\u221E: " + err.message, "fail"); toast(err.message); }
+  renderRegistry();
+}
+
+// ---------- registry / system panels ----------------------------------------------
+function renderRegistry() {
+  const rows = Object.keys(E.registry).sort().map(name => {
+    const a = E.registry[name];
+    const cur = a.versions.find(x => x.v === a.active);
+    const rolled = a.versions.some(x => x.status === "rolled_back");
+    return '<div class="kv"><span class="k">' + esc(name) + "</span>" +
+      '<span class="v">' + cur.v + " \u00b7 " + cur.stage +
+      (a.versions.length > 1 ? " \u00b7 " + a.versions.length + "v" : "") +
+      (rolled ? ' \u00b7 <span style="color:var(--fail)">\u21a9</span>' : "") + "</span></div>";
+  }).join("");
+  $("#registry").innerHTML = rows;
+}
+function renderSystem() {
+  const sys = $("#sysLedger");
+  if (!sys) return;
+  sys.innerHTML = '<div class="big">' + fmt$(E.balance) + "</div>" +
+    '<p class="note">owner balance \u00b7 every metered token debits an x402-style receipt</p><hr class="rule">' +
+    E.receipts.slice(-6).reverse().map(r =>
+      '<div class="kv"><span class="k">' + r.resource + "</span><span class=\"v\">\u2212$" +
+      r.amount.toFixed(6) + " \u00b7 " + r.nonce.slice(0, 6) + "</span></div>").join("");
+  $("#sysComp").innerHTML =
+    '<div class="kv"><span class="k">records</span><span class="v">' + E.compliance.length + "</span></div>" +
+    E.compliance.slice(-6).reverse().map(c =>
+      '<div class="kv"><span class="k">' + esc(c.kind) + "</span><span class=\"v\">" +
+      esc(String(c.detail).slice(0, 44)) + "</span></div>").join("");
+  $("#sysSuite").innerHTML =
+    '<div class="kv"><span class="k">frozen hash</span><span class="v">' + E.suite.frozenHash +
+    " \u00b7 " + (E.verifyFrozen() ? "intact" : "TAMPERED") + "</span></div>" +
+    '<div class="kv"><span class="k">holdout / canary</span><span class="v">count_vowels / fibonacci</span></div>' +
+    '<div class="kv"><span class="k">regressions</span><span class="v">' + E.suite.regressions.length + "</span></div>";
+  $("#sysConst").innerHTML =
+    '<div class="kv"><span class="k">digest</span><span class="v">' + E.constitutionDigest +
+    " \u00b7 " + (E.verifyConstitution() ? "verified" : "BROKEN") + "</span></div>" +
+    '<ul class="plain">' + RUI.INVARIANTS.map(i => "<li>" + esc(i) + "</li>").join("") + "</ul>";
+}
+
+// ---------- RAO ----------------------------------------------------------------
+function renderTrainStatic() {
+  $("#accBars").innerHTML = "";
+  $("#lossLine").textContent = "";
+  $("#trainNote").textContent = E.phase >= 2
+    ? "One policy drives every node of every tree. Training fits it to the multi-objective reward (success \u2212 cost \u2212 tokens \u2212 latency \u2212 violations) on synthetic episodes."
+    : "RAO training unlocks at phase 2.";
+  $("#btnTrain").disabled = E.phase < 2;
+  $("#btnHarness").disabled = E.phase < 2;
+  $("#btnCycle").disabled = E.phase < 3;
+  $("#btnHack").disabled = E.phase < 3;
+  $("#btnTrap").disabled = E.phase < 3;
+  decidePreview();
+}
+function decidePreview() {
+  const cases = [
+    ["small decomposable task", { kind: "code_suite", funcs: [1] }, 60000],
+    ["large decomposable task", { kind: "research", doc: "x".repeat(9000) + "\n\nx" }, 60000],
+    ["large task, budget nearly spent", { kind: "research", doc: "x".repeat(9000) + "\n\nx" }, 60000, 0.95],
+  ];
+  $("#decPrev").innerHTML = cases.map(c => {
+    const fake = { task: c[1], tokMax: c[2], tokUsed: c[3] ? c[2] * c[3] : 0, depth: 0 };
+    const d = E.decide(fake);
+    return '<div class="kv"><span class="k">' + c[0] + "</span><span class=\"v\">" +
+      (d === "SOLVE" ? "SOLVE" : "SPAWN") + "</span></div>";
+  }).join("");
+}
+async function trainRAO() {
+  await runGuarded("RAO training (30 iters)", async () => {
+    let last = "";
+    const r = await E.trainRAO((i, loss) => {
+      last = "iter " + (i + 1) + "/30 \u00b7 loss " + loss.toFixed(3);
+      $("#lossLine").textContent = last;
+    });
+    $("#accBars").innerHTML =
+      '<div class="blabel"><span>before</span><span>' + Math.round(r.before * 100) + "%</span></div>" +
+      '<div class="bar"><i style="width:' + r.before * 100 + '%;background:var(--mut)"></i></div>' +
+      '<div class="blabel"><span>after</span><span>' + Math.round(r.after * 100) + "%</span></div>" +
+      '<div class="bar"><i style="width:' + r.after * 100 + '%"></i></div>';
+    log("RAO trained: decision accuracy " + r.before.toFixed(2) + " \u2192 " + r.after.toFixed(2), "ok");
+    decidePreview();
+  });
+}
+
+// ---------- generic sheet / toast --------------------------------------------------
+let sheetClose = null;
+function sheet(title, bodyHTML, actions, onDismiss) {
+  $("#sheetTitle").textContent = title;
+  $("#sheetBody").innerHTML = bodyHTML;
+  const ab = $("#sheetBtns");
+  ab.innerHTML = "";
+  sheetClose = () => { $("#scrim").classList.remove("open"); $("#sheet").classList.remove("open"); sheetClose = null; };
+  for (const [label, cls, fn] of actions) {
+    const b = document.createElement("button");
+    b.className = "btn " + cls; b.textContent = label;
+    b.onclick = () => { const c = sheetClose; if (c) c(); if (fn) fn(); };
+    ab.appendChild(b);
+  }
+  $("#scrim").onclick = () => { const c = sheetClose; if (c) c(); if (onDismiss) onDismiss(); };
+  $("#scrim").classList.add("open");
+  $("#sheet").classList.add("open");
+}
+let toastT = null;
+function toast(msg) {
+  const t = $("#toast");
+  t.textContent = msg; t.classList.add("show");
+  clearTimeout(toastT); toastT = setTimeout(() => t.classList.remove("show"), 2600);
+}
+
+// ---------- header / tabs -----------------------------------------------------------
+function syncPhaseUI() { $("#phaseSel").value = String(E.phase); }
+function stopAll() {
+  const btn = $("#btnStop");
+  if (btn.classList.contains("reset")) {
+    E.resetKills();
+    btn.classList.remove("reset"); btn.textContent = "STOP ALL";
+    log("kill switches reset by owner", "ok");
+    return;
+  }
+  E.trip("*", "STOP ALL (owner)", "owner");
+  for (const id in E.nodes) {
+    const n = E.nodes[id];
+    if (n.status === "RUNNING" || n.status === "PENDING") { n.status = "KILLED"; n.err = "STOP ALL (owner)"; }
+  }
+  queueTree();
+  btn.classList.add("reset"); btn.textContent = "RESET \u23fb";
+  log("ROOT KILL SWITCH TRIPPED \u2014 everything halts; reset to continue", "fail");
+}
+function switchTab(name) {
+  document.querySelectorAll("nav button").forEach(b =>
+    b.setAttribute("aria-selected", b.dataset.tab === name ? "true" : "false"));
+  document.querySelectorAll(".tab").forEach(t =>
+    t.classList.toggle("active", t.id === "tab-" + name));
+  curTab = name;
+  if (name === "wiki") galStart(); else galStop();
+}
+
+
+// ---------- autonomous wiki + constellation --------------------------------
+const KIND_COLOR = { episode: "#E9EDE8", finding: "#6D8DFF", concept: "#57C7D6",
+  artifact: "#5BCB8E", eval: "#E4B44E", incident: "#F0705B", policy: "#B98FF2" };
+const KIND_DIR = { episode: [0, 0, 0], finding: [1, .25, -.45], concept: [-.9, .5, .35],
+  artifact: [-.25, -.9, .5], eval: [.5, -.6, -.85], incident: [.9, .8, .6], policy: [-.8, -.35, -.9] };
+const GAL = { nodes: new Map(), edges: [], yaw: .7, pitch: .28, dist: 3.4, sel: null,
+  raf: 0, on: false, cool: 1, drag: null, pinch: 0,
+  auto: !window.matchMedia("(prefers-reduced-motion: reduce)").matches,
+  cv: null, cx: null, W: 0, H: 0 };
+const rnd = () => Math.random() * 2 - 1;
+
+function galReset() {
+  GAL.nodes.clear(); GAL.edges = []; GAL.sel = null; GAL.cool = 1;
+  if (E) syncGraph();
+}
+function syncGraph() {
+  const g = E.wikiGraph();
+  for (const nd of g.nodes) if (!GAL.nodes.has(nd.id)) {
+    const d = KIND_DIR[nd.kind] || [0, 0, 0];
+    GAL.nodes.set(nd.id, { id: nd.id, kind: nd.kind, deg: 0,
+      x: d[0] * .8 + rnd() * .5, y: d[1] * .8 + rnd() * .5, z: d[2] * .8 + rnd() * .5,
+      vx: 0, vy: 0, vz: 0, birth: performance.now() });
+  }
+  for (const id of Array.from(GAL.nodes.keys())) if (!E.wiki.notes.has(id)) GAL.nodes.delete(id);
+  GAL.edges = g.links;
+  const deg = {};
+  for (const e of g.links) { deg[e.a] = (deg[e.a] || 0) + 1; deg[e.b] = (deg[e.b] || 0) + 1; }
+  GAL.nodes.forEach(nd => { nd.deg = deg[nd.id] || 0; });
+  GAL.cool = 1;
+}
+let wikiT = 0;
+function onWikiEvent() {
+  syncGraph();
+  if (!wikiT) wikiT = setTimeout(() => { wikiT = 0; renderWikiList(); renderStrip(); }, 200);
+}
+function galTick() {
+  const N = Array.from(GAL.nodes.values());
+  if (GAL.cool > .02) {
+    for (let i = 0; i < N.length; i++) for (let j = i + 1; j < N.length; j++) {
+      const a = N[i], b = N[j];
+      let dx = a.x - b.x, dy = a.y - b.y, dz = a.z - b.z;
+      const f = .012 / (dx * dx + dy * dy + dz * dz + .01);
+      dx *= f; dy *= f; dz *= f;
+      a.vx += dx; a.vy += dy; a.vz += dz; b.vx -= dx; b.vy -= dy; b.vz -= dz;
+    }
+    for (const e of GAL.edges) {
+      const a = GAL.nodes.get(e.a), b = GAL.nodes.get(e.b);
+      if (!a || !b) continue;
+      const dx = b.x - a.x, dy = b.y - a.y, dz = b.z - a.z;
+      const d = Math.sqrt(dx * dx + dy * dy + dz * dz) + 1e-6, k = .02 * (d - .85) / d;
+      a.vx += dx * k; a.vy += dy * k; a.vz += dz * k;
+      b.vx -= dx * k; b.vy -= dy * k; b.vz -= dz * k;
+    }
+    for (const nd of N) {
+      nd.vx -= nd.x * .004; nd.vy -= nd.y * .004; nd.vz -= nd.z * .004;
+      nd.x += nd.vx * GAL.cool; nd.y += nd.vy * GAL.cool; nd.z += nd.vz * GAL.cool;
+      nd.vx *= .86; nd.vy *= .86; nd.vz *= .86;
+    }
+    GAL.cool *= .992;
+  }
+  if (GAL.auto && !GAL.drag) GAL.yaw += .0016;
+}
+function project(nd) {
+  const cy = Math.cos(GAL.yaw), sy = Math.sin(GAL.yaw);
+  const cp = Math.cos(GAL.pitch), sp = Math.sin(GAL.pitch);
+  const x = nd.x * cy + nd.z * sy, z0 = -nd.x * sy + nd.z * cy;
+  const y = nd.y * cp - z0 * sp, z = nd.y * sp + z0 * cp;
+  const per = 2.2 / (GAL.dist + z);
+  return { sx: GAL.W / 2 + x * per * GAL.W * .42, sy: GAL.H / 2 + y * per * GAL.W * .42, per: per, z: z };
+}
+function galDraw() {
+  const c = GAL.cx;
+  if (!c) return;
+  c.fillStyle = "#11171C"; c.fillRect(0, 0, GAL.W, GAL.H);
+  const P = new Map();
+  GAL.nodes.forEach(nd => P.set(nd.id, project(nd)));
+  c.lineWidth = 1;
+  for (const e of GAL.edges) {
+    const a = P.get(e.a), b = P.get(e.b);
+    if (!a || !b) continue;
+    const hot = GAL.sel && (e.a === GAL.sel || e.b === GAL.sel);
+    c.globalAlpha = hot ? .55 : .13;
+    c.strokeStyle = hot ? "#8FB0FF" : "#9AA7B5";
+    c.beginPath(); c.moveTo(a.sx, a.sy); c.lineTo(b.sx, b.sy); c.stroke();
+  }
+  const pts = [];
+  GAL.nodes.forEach(nd => pts.push({ p: P.get(nd.id), nd: nd }));
+  pts.sort((u, v) => v.p.z - u.p.z);
+  const t = performance.now();
+  for (const it of pts) {
+    const p = it.p, nd = it.nd;
+    const col = KIND_COLOR[nd.kind] || "#fff";
+    const r = Math.max(1.4, (2.6 + Math.min(4, nd.deg) * .55) * p.per);
+    c.fillStyle = col;
+    c.globalAlpha = .15 * Math.min(1.2, p.per);
+    c.beginPath(); c.arc(p.sx, p.sy, r * 2.3, 0, 7); c.fill();
+    if (GAL.auto) {
+      const age = t - nd.birth;
+      if (age < 900) {
+        c.globalAlpha = (1 - age / 900) * .55; c.strokeStyle = col;
+        c.beginPath(); c.arc(p.sx, p.sy, r * (1.4 + age / 220), 0, 7); c.stroke();
+      }
+    }
+    c.globalAlpha = Math.min(1, .3 + .85 * p.per);
+    c.beginPath(); c.arc(p.sx, p.sy, r, 0, 7); c.fill();
+    if (GAL.sel === nd.id) {
+      c.globalAlpha = .95; c.strokeStyle = "#FFFFFF";
+      c.beginPath(); c.arc(p.sx, p.sy, r + 3.5, 0, 7); c.stroke();
+      const note = E.wiki.notes.get(nd.id);
+      if (note) {
+        c.font = "10px ui-monospace, Menlo, monospace"; c.fillStyle = "#E9EDE8";
+        c.fillText(note.title.slice(0, 26), Math.min(p.sx + 8, GAL.W - 140), p.sy - 8);
+      }
+    }
+  }
+  c.globalAlpha = 1;
+}
+function galLoop() {
+  if (!GAL.on) return;
+  galTick(); galDraw();
+  GAL.raf = requestAnimationFrame(galLoop);
+}
+function galResize() {
+  const cv = GAL.cv;
+  const w = cv.clientWidth, h = cv.clientHeight;
+  const dpr = Math.min(2, window.devicePixelRatio || 1);
+  cv.width = Math.max(1, w * dpr); cv.height = Math.max(1, h * dpr);
+  GAL.W = w; GAL.H = h;
+  GAL.cx = cv.getContext("2d");
+  GAL.cx.setTransform(dpr, 0, 0, dpr, 0, 0);
+}
+function galStart() {
+  if (GAL.on || !GAL.cv) return;
+  GAL.on = true; galResize(); syncGraph(); GAL.cool = 1; galLoop();
+}
+function galStop() {
+  GAL.on = false;
+  cancelAnimationFrame(GAL.raf);
+}
+function galInit() {
+  const cv = document.getElementById("galaxy");
+  GAL.cv = cv;
+  const ptrs = new Map();
+  const pd = (a, b) => Math.hypot(a.x - b.x, a.y - b.y);
+  cv.addEventListener("pointerdown", e => {
+    cv.setPointerCapture(e.pointerId);
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    GAL.drag = { moved: 0 };
+    if (ptrs.size === 2) { const a = Array.from(ptrs.values()); GAL.pinch = pd(a[0], a[1]); }
+  });
+  cv.addEventListener("pointermove", e => {
+    if (!ptrs.has(e.pointerId)) return;
+    const prev = ptrs.get(e.pointerId);
+    const dx = e.clientX - prev.x, dy = e.clientY - prev.y;
+    ptrs.set(e.pointerId, { x: e.clientX, y: e.clientY });
+    if (ptrs.size === 1) {
+      GAL.yaw += dx * .008;
+      GAL.pitch = Math.max(-1.4, Math.min(1.4, GAL.pitch + dy * .008));
+      GAL.drag.moved += Math.abs(dx) + Math.abs(dy);
+    } else if (ptrs.size === 2) {
+      const a = Array.from(ptrs.values());
+      const d = pd(a[0], a[1]);
+      if (GAL.pinch) GAL.dist = Math.max(1.8, Math.min(6.5, GAL.dist * GAL.pinch / d));
+      GAL.pinch = d; GAL.drag.moved += 3;
+    }
+  });
+  const up = e => {
+    ptrs.delete(e.pointerId);
+    if (ptrs.size === 0) {
+      if (GAL.drag && GAL.drag.moved < 8) galPick(e);
+      GAL.drag = null; GAL.pinch = 0;
+    }
+  };
+  cv.addEventListener("pointerup", up);
+  cv.addEventListener("pointercancel", up);
+  cv.addEventListener("wheel", e => {
+    e.preventDefault();
+    GAL.dist = Math.max(1.8, Math.min(6.5, GAL.dist * (1 + Math.sign(e.deltaY) * .08)));
+  }, { passive: false });
+  window.addEventListener("resize", () => { if (GAL.on) galResize(); });
+}
+function galPick(e) {
+  const rect = GAL.cv.getBoundingClientRect();
+  const mx = e.clientX - rect.left, my = e.clientY - rect.top;
+  let best = null, bd = 26 * 26;
+  GAL.nodes.forEach(nd => {
+    const p = project(nd);
+    const d = (p.sx - mx) * (p.sx - mx) + (p.sy - my) * (p.sy - my);
+    if (d < bd) { bd = d; best = nd.id; }
+  });
+  GAL.sel = best;
+  if (best) openNote(best);
+}
+function openNote(id) {
+  const n = E.wiki.notes.get(id);
+  if (!n) return;
+  GAL.sel = id;
+  const linkBtn = l => {
+    const tn = E.wiki.notes.get(l);
+    return tn ? '<button class="chip nlink" data-note="' + l + '">' + esc(tn.title) + "</button>"
+              : '<span class="chip">' + esc(l) + "</span>";
+  };
+  const bl = E.backlinks(id);
+  sheet(n.title,
+    '<p><span class="stamp acc">' + esc(n.kind.toUpperCase()) + '</span> ' +
+    '<span class="mono" style="font-size:.7rem;color:var(--mut)">by ' + esc(n.author) +
+    " \u00b7 refs " + n.refs + "</span></p>" +
+    '<p style="margin:.45rem 0">' + esc(n.body) + "</p>" +
+    (n.links.length ? '<p class="note">links</p><p>' + n.links.map(linkBtn).join(" ") + "</p>" : "") +
+    (bl.length ? '<p class="note" style="margin-top:.45rem">backlinks</p><p>' + bl.map(linkBtn).join(" ") + "</p>" : ""),
+    [["Close", "sec", null]]);
+}
+function renderWikiList() {
+  const qEl = $("#wikiQ");
+  const q = (qEl ? qEl.value : "").toLowerCase();
+  let shown = 0, h = "";
+  for (let i = E.wiki.order.length - 1; i >= 0; i--) {
+    const id = E.wiki.order[i], n = E.wiki.notes.get(id);
+    if (q && (n.title + " " + n.body).toLowerCase().indexOf(q) < 0) continue;
+    if (++shown > 40) break;
+    h += '<div class="kv wnote" data-note="' + id + '" role="button" tabindex="0">' +
+      '<span class="k"><i class="dot" style="background:' + (KIND_COLOR[n.kind] || "#999") + '"></i>' +
+      esc(n.title) + '</span><span class="v">' + n.kind + " \u00b7 " + n.refs + "\u00d7</span></div>";
+  }
+  $("#wikiList").innerHTML = h ||
+    '<p class="note">' + (q ? "No notes match." : "No notes yet \u2014 run a workload; agents write as they work.") + "</p>";
+  $("#wikiCount").textContent = E.wiki.notes.size + " notes \u00b7 " + GAL.edges.length + " links";
+}
+
+// ---------- wire up -------------------------------------------------------------------
+window.addEventListener("DOMContentLoaded", () => {
+  document.querySelectorAll("nav button").forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+  $("#phaseSel").onchange = e => { boot(parseInt(e.target.value, 10)); toast("Booted phase " + e.target.value); };
+  $("#btnStop").onclick = stopAll;
+  $("#btnCoding").onclick = () => runGuarded("coding suite (4 functions, executed + verified)", runCoding);
+  $("#btnResearch").onclick = () => runGuarded("research over a 34k-token document", runResearch);
+  $("#btnStress").onclick = () => runGuarded("stress: tiny budget", runStress);
+  $("#btnDegrade").onclick = () => runGuarded("degrade: frontier tier removed", runDegraded);
+  $("#btnCycle").onclick = metaCycle;
+  $("#btnHack").onclick = injectHack;
+  $("#btnTrap").onclick = injectTrap;
+  $("#btnConst").onclick = attackConstitution;
+  $("#btnHarness").onclick = selfHarness;
+  $("#btnLevelInf").onclick = applyLevelInf;
+  $("#btnTrain").onclick = trainRAO;
+  $("#btnReset").onclick = () => { boot(E.phase); toast("State reset"); };
+  galInit();
+  $("#wikiQ").oninput = () => renderWikiList();
+  $("#wikiList").addEventListener("click", e => {
+    const r = e.target.closest("[data-note]");
+    if (r) openNote(r.getAttribute("data-note"));
+  });
+  $("#wikiList").addEventListener("keydown", e => {
+    if (e.key !== "Enter" && e.key !== " ") return;
+    const r = e.target.closest("[data-note]");
+    if (r) { e.preventDefault(); openNote(r.getAttribute("data-note")); }
+  });
+  $("#sheetBody").addEventListener("click", e => {
+    const b = e.target.closest("[data-note]");
+    if (b) openNote(b.getAttribute("data-note"));
+  });
+  document.addEventListener("visibilitychange", () => {
+    if (document.hidden) galStop(); else if (curTab === "wiki") galStart();
+  });
+  boot(3);
+});
+})();
+
+</script>
+</body>
+</html>
