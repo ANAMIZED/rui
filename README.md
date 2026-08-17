@@ -28,17 +28,17 @@ A senior engineer who has never seen this repository can, using **only** the sou
 3. Use every surface: **CLI · REST API · MCP · SDK · multi-agent workflows**
 4. Inspect the Phase coverage and gap analysis
 
-**[Support Public Goods](https://donate.stripe.com/00w5kE3wOg5L8Jn2F243S00)** · **[Support Agentic OS Kernels ($99)](https://buy.stripe.com/bJecN63wObPv6Bf7Zm43S02)**
+**[RUI Kernel Support ($99)](https://buy.stripe.com/4gMaEY1oG6vbf7LfrO43S07)** · **[RUI Pro ($49/mo)](https://buy.stripe.com/aFacN65EW5r7e3HgvS43S08)** · **[Agentic OS Cycle ($0.75)](https://buy.stripe.com/3cI14o8R8dXD3p3frO43S04)** · **[Public Goods](https://donate.stripe.com/00w5kE3wOg5L8Jn2F243S00)**
 
 ### Non-custodial USDC (preferred for agents)
 
 | Network | Address | Explorer |
 |---------|---------|----------|
 | **Base** | `0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438` | [basescan](https://basescan.org/address/0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438) |
-| **Ethereum** | `0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438` | [etherscan](https://etherscan.org/address/0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438) |
+| **Ethereum** | `0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438` | [etherscan](https://etherscan.io/address/0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438) |
 | **Solana** | `ETQwWf19axArsY493UfC6bxe2BmEzmzvCb58PPnC38A` | [solscan](https://solscan.io/account/ETQwWf19axArsY493UfC6bxe2BmEzmzvCb58PPnC38A) |
 
-*Related:* [server-os](https://github.com/ANAMIZED/server-os) · [OpenGOS](https://github.com/ANAMIZED/OpenGOS) · [LRSI](https://github.com/ANAMIZED/LRSI) · [edge-os](https://github.com/ANAMIZED/edge-os)
+*Related:* [server-os](https://github.com/ANAMIZED/server-os) · [LRSI](https://github.com/ANAMIZED/LRSI) · [openmesha](https://github.com/ANAMIZED/openmesha) · [OpenGOS](https://github.com/ANAMIZED/OpenGOS) · [edge-os](https://github.com/ANAMIZED/edge-os)
 
 ---
 
