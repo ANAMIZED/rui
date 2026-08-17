@@ -4,25 +4,46 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "rui"
-version = "0.1.0"
-description = "Recursive UltraIntelligence — Autonomous Agentic Operating System with RAH, RAO, Call Trees, meta-loops, cost control and governance"
+version = "0.2.0"
+description = "Recursive UltraIntelligence — Autonomous Agentic Operating System with RAH, RAO, Call Trees, meta-loops, cost control, governance, SDK, API, CLI & MCP"
 readme = "README.md"
 requires-python = ">=3.11"
 license = {text = "Apache-2.0"}
 authors = [{name = "RUI Contributors"}]
+keywords = ["agents", "recursive", "agentic-os", "mcp", "governance", "cost-control"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Developers",
+    "License :: OSI Approved :: Apache Software License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.11",
+    "Programming Language :: Python :: 3.12",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
 dependencies = [
     "pydantic>=2.9.0",
     "pydantic-settings>=2.6.0",
     "structlog>=24.4.0",
     "typer>=0.12.0",
     "rich>=13.9.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "httpx>=0.27.0",
+    "mcp>=1.0.0",
 ]
 
 [project.optional-dependencies]
-dev = ["pytest>=8.3.0", "pytest-asyncio>=0.24.0"]
+dev = ["pytest>=8.3.0", "pytest-asyncio>=0.24.0", "ruff>=0.6.0"]
 
 [project.scripts]
-rui = "rui:main"
+rui = "rui.cli:app"
+rui-api = "rui.api.main:run"
+rui-mcp = "rui.mcp.server:main"
+
+[project.urls]
+Homepage = "https://github.com/ANAMIZED/rui"
+Repository = "https://github.com/ANAMIZED/rui"
+Issues = "https://github.com/ANAMIZED/rui/issues"
 
 [tool.setuptools.packages.find]
 where = ["src"]
@@ -30,3 +51,4 @@ where = ["src"]
 [tool.pytest.ini_options]
 testpaths = ["tests"]
 pythonpath = ["src"]
+asyncio_mode = "auto"

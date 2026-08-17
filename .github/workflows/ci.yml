@@ -22,9 +22,26 @@ jobs:
         run: |
           python -m pip install --upgrade pip
           pip install -e ".[dev]"
-      - name: Test
+      - name: Lint (ruff, non-blocking)
+        run: |
+          pip install ruff || true
+          ruff check src/ || true
+      - name: Unit & integration tests
         run: |
           python -m pytest tests/ -v --tb=short
+      - name: Import surfaces
+        run: |
+          python -c "from rui import RUI, __version__; print('RUI', __version__)"
+          python -c "from rui.cli import app; print('CLI OK')"
+          python -c "from rui.sdk import RUIClient; print('SDK OK')"
+          python -c "from rui.api.main import app; print('API OK')"
+          python -c "from rui.mcp.server import mcp; print('MCP OK')"
+          python -c "from rui.workflows import run_multi_agent_workflow; print('Workflows OK')"
+      - name: CLI smoke
+        run: |
+          rui version
+          rui status
+          rui gov constitution
       - name: E2E
         run: |
           python tests/e2e/test_rui_e2e.py || true

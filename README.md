@@ -1,7 +1,12 @@
 # Recursive UltraIntelligence (RUI)
 
+[![CI](https://github.com/ANAMIZED/rui/actions/workflows/ci.yml/badge.svg)](https://github.com/ANAMIZED/rui/actions/workflows/ci.yml)
 [![License](https://img.shields.io/badge/License-Apache_2.0-blue.svg)](LICENSE)
 [![Python 3.11+](https://img.shields.io/badge/python-3.11+-blue.svg)](https://www.python.org/downloads/)
+[![MCP](https://img.shields.io/badge/MCP-server-purple.svg)](src/rui/mcp/)
+[![SDK](https://img.shields.io/badge/SDK-Python-green.svg)](src/rui/sdk/)
+[![CLI](https://img.shields.io/badge/CLI-rui-orange.svg)](src/rui/cli.py)
+[![API](https://img.shields.io/badge/API-FastAPI-009688.svg)](src/rui/api/)
 
 **Autonomous Agentic Operating System**
 
@@ -20,7 +25,8 @@ A senior engineer who has never seen this repository can, using **only** the sou
 
 1. Install and run the verification suite
 2. Exercise the recursive runtime, cost controls and governance
-3. Inspect the Phase coverage and gap analysis
+3. Use every surface: **CLI · REST API · MCP · SDK · multi-agent workflows**
+4. Inspect the Phase coverage and gap analysis
 
 **[Support Public Goods](https://donate.stripe.com/00w5kE3wOg5L8Jn2F243S00)** · **[Support Agentic OS Kernels ($99)](https://buy.stripe.com/bJecN63wObPv6Bf7Zm43S02)**
 
@@ -29,8 +35,20 @@ A senior engineer who has never seen this repository can, using **only** the sou
 | Network | Address | Explorer |
 |---------|---------|----------|
 | **Base** | `0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438` | [basescan](https://basescan.org/address/0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438) |
-| **Ethereum** | `0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438` | [etherscan](https://etherscan.io/address/0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438) |
+| **Ethereum** | `0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438` | [etherscan](https://etherscan.org/address/0xD3d0E9eDAe3Ac7bb199a8EAA761BdA423b878438) |
 | **Solana** | `ETQwWf19axArsY493UfC6bxe2BmEzmzvCb58PPnC38A` | [solscan](https://solscan.io/account/ETQwWf19axArsY493UfC6bxe2BmEzmzvCb58PPnC38A) |
+
+*Related:* [server-os](https://github.com/ANAMIZED/server-os) · [OpenGOS](https://github.com/ANAMIZED/OpenGOS) · [LRSI](https://github.com/ANAMIZED/LRSI) · [edge-os](https://github.com/ANAMIZED/edge-os)
+
+---
+
+## Live Console (Hero Demo — Zero Install)
+
+**Canonical file:** [`rui-1.html`](rui-1.html)
+
+Open in any modern browser (File → Open). Full recursive call tree, budgets, kill switches, staged promotion, Red Queen, Level-∞ gate, and knowledge constellation — all client-side.
+
+---
 
 ## Quick Start
 
@@ -38,10 +56,61 @@ A senior engineer who has never seen this repository can, using **only** the sou
 python -m venv .venv && source .venv/bin/activate
 pip install -e ".[dev]"
 python -m pytest tests/ -v
-python tests/e2e/test_rui_e2e.py
+rui status
+rui tree start "Verify recursive budget & governance"
+rui workflow run --goal "Decompose and solve a coding suite" --agents planner,worker,critic
 ```
 
-## Architecture (matching Server OS layout)
+## Surfaces
+
+| Surface | Entry |
+|---------|-------|
+| **Live console** | `rui-1.html` (offline, self-verifying) |
+| **CLI** | `rui status` · `rui tree …` · `rui workflow run` · `rui serve` |
+| **REST API** | `rui-api` or `rui serve` → http://localhost:8080/docs |
+| **MCP Server** | `rui-mcp` (stdio) |
+| **Python SDK** | `from rui.sdk import RUIClient` |
+| **Multi-agent workflows** | `skills/multi-agent-workflow/` + `rui.workflows` |
+| **Skills** | `skills/*/SKILL.md` |
+| **AGENTS.md** | Coding-agent contract at repo root |
+
+### CLI examples
+
+```bash
+rui version
+rui status
+rui tree start "Research 12-section document under budget"
+rui tree show
+rui tree kill <node_id> --reason operator
+rui gov constitution
+rui gov audit
+rui workflow run -g "Improve coding prompt under holdout gate" -a planner,worker,critic
+rui serve --port 8080
+```
+
+### SDK example
+
+```python
+from rui.sdk import RUIClient
+
+with RUIClient("http://localhost:8080") as c:
+    print(c.health())
+    root = c.start_task("Spawn a governed research tree")
+    print(root)
+    print(c.workflow(goal="Multi-agent analysis", agents=["planner", "worker"]))
+```
+
+### MCP
+
+```bash
+rui-mcp   # stdio MCP server for Claude / Cursor / any MCP client
+```
+
+Tools: `rui_status`, `start_root_task`, `spawn_child`, `get_call_tree`, `kill_node`, `get_audit_log`, `verify_constitution`, `run_multi_agent`.
+
+---
+
+## Architecture
 
 ```
 src/rui/
@@ -51,6 +120,11 @@ src/rui/
 ├── runtime/iact.py         # Interactive Agents Call Tree
 ├── runtime/rah.py          # Recursive Agent Harness
 ├── meta/self_harness.py    # SelfHarness + OuterMetaLoop
+├── workflows/              # Multi-agent sequential workflows
+├── api/                    # FastAPI REST surface
+├── mcp/                    # MCP server
+├── sdk/                    # Python client
+├── cli.py                  # Typer CLI
 └── __init__.py             # Top-level RUI integration
 ```
 
