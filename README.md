@@ -8,7 +8,7 @@
 [![CLI](https://img.shields.io/badge/CLI-rui-orange.svg)](src/rui/cli.py)
 [![API](https://img.shields.io/badge/API-FastAPI-009688.svg)](src/rui/api/)
 
-**Autonomous Agentic Operating System**
+**"Recursive UltraIntelligence" (RUI)**
 
 RUI is a recursive, cost-aware, governed agentic operating system. It implements:
 
